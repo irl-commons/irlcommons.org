@@ -141,7 +141,7 @@ def fold(summary: str, inner: str, cls: str='', fid: str='') -> str:
 def sources_fold(links: str, cls: str='') -> str:
     return fold('Sources', f'<p class="tip-src">{links}</p>', f'sources {cls}'.strip())
 
-STANDARD_GROUPS = [('shared', 'shared', 'Shared across apps', 'Apps and services from different makers understand these.'), ('app-formats', 'app-formats', 'App formats', "One app's own format that a second app also reads or writes. Both are named."), ('hardware-codecs', 'hardware-codecs', 'Hardware and codecs', "How the picture and sound get compressed, and the cables a camera's picture comes in on."), ('steward-projects', 'mine', 'From the OpenStreamBox Initiative', 'Drafts the OpenStreamBox Initiative started. They are listed apart, so nobody takes them for standards already in use. <a href="open-standards.html">How they fit together</a>.')]
+STANDARD_GROUPS = [('shared', 'shared', 'Shared across apps', 'Apps and services from different makers understand these.'), ('app-formats', 'app-formats', 'App formats', "One app's own format that a second app also reads or writes. Both are named."), ('hardware-codecs', 'hardware-codecs', 'Hardware and codecs', "How the picture and sound get compressed, and the cables a camera's picture comes in on."), ('steward-projects', 'mine', 'From IRL Commons', 'Drafts IRL Commons started. They are listed apart, so nobody takes them for standards already in use. <a href="open-standards.html">See the drafts</a>.')]
 
 STANDARD_KIND = {'protocol': 'Protocol', 'format': 'Format', 'settings': 'Setup link or file', 'data': 'Data', 'codec': 'Codec', 'interface': 'Hardware interface'}
 

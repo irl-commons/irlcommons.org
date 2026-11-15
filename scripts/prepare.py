@@ -38,6 +38,7 @@ for src in (ROOT/'content').glob('*.html'):
  body=r.fill_calc(body,r.datause.load_model())
  # Resolve data-generated links across the two public sites.
  cfg=json.loads((ROOT/'site.json').read_text())
+ body=body.replace('>Data and standards</a>', '>Open data at IRL Commons</a>' if cfg['domain']=='howtoirl.org' else '>Open data</a>')
  other='irlcommons.org' if cfg['domain']=='howtoirl.org' else 'howtoirl.org'
  def cross(match):
   page=match[1]

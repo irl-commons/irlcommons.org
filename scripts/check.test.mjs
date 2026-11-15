@@ -16,6 +16,8 @@ test('Every page has its canonical URL, metadata, one h1 and unique ids',()=>{
   assert.ok(text.includes(`rel="canonical" href="${url}"`),name);
   assert.ok(text.includes(`property="og:url" content="${url}"`),name);
   assert.ok(!text.includes('name="robots"'),name);
+  assert.ok(!text.includes('OpenStreamBox Initiative'),name);
+  assert.ok(!text.includes('>Data and standards</a>'),name);
  }
 });
 test('Local links and fragments resolve',async()=>{
