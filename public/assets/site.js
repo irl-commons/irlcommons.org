@@ -6,7 +6,7 @@
   var THEME_KEY = "osb.theme";
   var THEMES = ["auto", "dark", "light"];
 
-  
+
   function readTheme(storage) {
     try {
       var v = storage && storage.getItem(THEME_KEY);
@@ -14,7 +14,7 @@
     } catch (e) { return "auto"; }
   }
 
-  
+
   function writeTheme(storage, theme) {
     try {
       if (theme === "dark" || theme === "light") storage.setItem(THEME_KEY, theme); else storage.removeItem(THEME_KEY);
@@ -31,7 +31,7 @@
     de: { auto: "automatisch", dark: "dunkel", light: "hell", label: "Farbschema: ", device: ", wie Ihr Gerät", press: ". Wechseln zu ", tip: "Farbschema: " }
   };
 
-  
+
   function themeLabel(theme, lang) {
     var t = THEME_TEXT[lang] || THEME_TEXT.en;
     return t.label + t[theme] + (theme === "auto" ? t.device : "") + t.press + t[nextTheme(theme)] + ".";
@@ -41,7 +41,7 @@
     try { return window.localStorage; } catch (e) { return null; }
   }
 
-  
+
   function hasSaved(storage) {
     try {
       var v = JSON.parse((storage && storage.getItem(KEY)) || "null");
@@ -51,7 +51,7 @@
 
   var BETA_KEY = "osb.beta.hidden";
 
-  
+
   function betaHidden(storage) {
     try { return !!storage && storage.getItem(BETA_KEY) === "1"; } catch (e) { return false; }
   }
@@ -62,13 +62,13 @@
     try { return window.sessionStorage; } catch (e) { return null; }
   }
 
-  
+
   function movedUrl(target, hash) {
     if (!/^[a-z0-9-]+\.html$/.test(target || "")) return null;
     return target + (/^#[A-Za-z0-9_-]+$/.test(hash || "") ? hash : "");
   }
 
-  
+
   function hashId(hash) {
     var raw = String(hash || "").replace(/^#/, "");
     try { raw = decodeURIComponent(raw); } catch (e) { return ""; }
@@ -88,7 +88,7 @@
   }
   var ID = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
-  
+
   function splitHash(hash) {
     var out = { section: "", stack: null };
     String(hash || "").replace(/^#/, "").split("&").forEach(function (part) {
@@ -98,7 +98,7 @@
     return out;
   }
 
-  
+
   function parseHash(hash, known) {
     var raw = splitHash(hash).stack;
     if (raw === null) return null;
@@ -113,7 +113,7 @@
     return "#stack=" + ids.filter(function (id) { return ID.test(id); }).join(",");
   }
 
-  
+
   function stateHash(section, ids) {
     var parts = [];
     if (section && /^[A-Za-z][A-Za-z0-9_-]*$/.test(section)) parts.push(section);
@@ -122,7 +122,7 @@
     return parts.length ? "#" + parts.join("&") : "";
   }
 
-  
+
   function inOrder(ids, known) {
     return known.filter(function (id) { return ids.indexOf(id) !== -1; });
   }
@@ -131,7 +131,7 @@
     return !!a && !!b && a.length === b.length && a.every(function (id) { return b.indexOf(id) !== -1; });
   }
 
-  
+
   function startPicks(hash, known, savedIds) {
     var fromLink = parseHash(hash, known);
     if (fromLink && fromLink.length) {
@@ -142,12 +142,12 @@
     return { ids: [], from: "none", remember: false };
   }
 
-  
+
   function matches(dataStack, picked) {
     return (dataStack || "").split(" ").some(function (id) { return id && picked.indexOf(id) !== -1; });
   }
 
-  
+
   function store(storage) {
     return {
       load: function (known) {
@@ -171,7 +171,7 @@
     return names.slice(0, -1).join(", ") + " and " + names[names.length - 1];
   }
 
-  
+
   function fitLevel(needs, picked) {
     var groups = String(needs || "").split("|").filter(Boolean);
     var met = groups.filter(function (grp) { return matches(grp, picked); }).length;
@@ -181,7 +181,7 @@
 
   function plural(n, one, many) { return n === 1 ? "1 " + one : n + " " + many; }
 
-  
+
   function describe(picked, counts) {
     if (!picked.length) return "Nothing picked yet. All help shows in its usual order.";
     var parts = [];
@@ -191,17 +191,17 @@
     return "First on this page: " + listNames(parts) + ". Everything else follows below.";
   }
 
-  
+
   function summaryText(names) {
     return names.length ? names.join(", ") : "nothing picked yet";
   }
 
-  
+
   function norm(text) {
     return String(text || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
   }
 
-  
+
   function wordMatches(haystack, query) {
     var hay = norm(haystack);
     return norm(query).split(/\s+/).filter(Boolean).every(function (piece) { return hay.indexOf(piece) !== -1; });
@@ -221,7 +221,7 @@
 
   var MODES = ["single", "bonded", "redundant"];
 
-  
+
   function dataUse(m, hours, videoMbps, audioKbps, mode, links, lossPct, recordMbps) {
     if (MODES.indexOf(mode) === -1) throw new Error("unknown mode " + mode);
     var secs = hours * 3600;
@@ -276,7 +276,7 @@
 
   function group(n) { return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ","); }
 
-  
+
   function fmtSize(b, m) {
     var halfUp = function (x) { return Math.floor(x + 0.5); };
     var gb = b / m.units.gb_bytes;
@@ -291,7 +291,7 @@
     return group(halfUp(gb)) + " GB";
   }
 
-  
+
   function readNumber(text) {
     var t = String(text || "").trim().replace(",", ".");
     return /^\d*\.?\d+$|^\d+\.$/.test(t) ? parseFloat(t) : NaN;
@@ -376,12 +376,12 @@
       }
     }
 
-    
+
     function sectionNow() {
       var s = splitHash(window.location.hash).section;
       return s && document.getElementById(s) ? s : "";
     }
-    
+
     function stateUrl() {
       return window.location.href.split("#")[0] + stateHash(sectionNow(), picked());
     }
@@ -389,7 +389,7 @@
       var target = id && document.getElementById(id);
       if (target) target.scrollIntoView({ block: "start", behavior: "instant" });
     }
-    
+
     function syncUrl() {
       var hash = window.location.hash;
       if (!picked().length && splitHash(hash).stack === null) return; // nothing to add or remove
@@ -503,7 +503,7 @@
     apply();
   }
 
-  
+
   function initStandards() {
     var tools = document.getElementById("std-tools");
     if (!tools) return;
@@ -540,7 +540,7 @@
     apply();
   }
 
-  
+
   function initClear() {
     var SVG = "http://www.w3.org/2000/svg";
     Array.prototype.forEach.call(document.querySelectorAll('input[type="search"]'), function (input) {
@@ -617,7 +617,7 @@
     close.hidden = false;
   }
 
-  
+
   function reveal(el) {
     var opened = false;
     for (var d = el; d; d = d.parentElement) {
@@ -626,7 +626,7 @@
     return opened;
   }
 
-  
+
   function initFold() {
     var root = document.documentElement;
     try {
@@ -649,7 +649,7 @@
     }
   }
 
-  
+
   function landTarget() {
     var target = document.getElementById(hashId(window.location.hash));
     if (!target || !target.getClientRects().length) return;
@@ -658,7 +658,7 @@
     if (Math.abs(top - margin) > 4) target.scrollIntoView({ block: "start", behavior: "instant" });
   }
 
-  
+
   function initPermalinks() {
     if (!document.querySelector("a.permalink")) return;
     var live = document.createElement("p");
@@ -688,7 +688,7 @@
     });
   }
 
-  
+
   function initCalc() {
     var box = document.getElementById("calc");
     if (!box) return;
@@ -707,7 +707,7 @@
 
     function mode() { var r = radios.filter(function (x) { return x.checked; })[0]; return r ? r.value : "bonded"; }
 
-    
+
     function read() {
       var bad = [];
       var check = function (input, ok, msg) { var fine = ok; input.setAttribute("aria-invalid", fine ? "false" : "true"); if (!fine) bad.push(msg); };
@@ -791,18 +791,18 @@
 (function () {
   "use strict";
 
-  
+
   function norm(text) {
     return String(text || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
   }
 
-  
+
   function rowMatches(search, q) {
     var hay = norm(search);
     return norm(q).split(/\s+/).filter(Boolean).every(function (piece) { return hay.indexOf(piece) !== -1; });
   }
 
-  
+
   function oldHelpTarget(raw) {
     var m = /^ask-([a-z0-9-]+)$/.exec(raw);
     if (m) return "links.html#" + m[1];
