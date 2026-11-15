@@ -73,7 +73,7 @@ def word_names(w: dict) -> list[str]:
     return [w['term'], *w.get('also_called', []), *w.get('search_terms', []), *([n['label']] if n else []), *(a['term'] for a in n.get('alternatives', []))]
 
 def words_entries(words: list[dict], lang: str) -> str:
-    # The streamer glossary: the word, a plain explanation and its true synonyms. Nothing else (A310).
+    # The streamer glossary: the word, a plain explanation and its true synonyms. Nothing else.
     t = WORD_TEXT[lang]
     names = {w['id']: loc(w, lang, 'term') for w in words}
     out = []
