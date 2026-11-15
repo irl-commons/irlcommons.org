@@ -64,3 +64,22 @@ test('The old standards address points to Existing formats',async()=>{
  assert.ok(text.includes('rel="canonical" href="https://irlcommons.org/existing-formats.html"'));
  assert.ok(docs.has('existing-formats.html')&&!docs.has('standards.html'));
 });
+
+test('Search and naming rendering use explicit names, service evidence and see links', async()=>{
+ const {execFileSync}=await import('node:child_process');
+ execFileSync('python3',['-c', `
+import sys
+sys.path.insert(0, 'shared')
+import render as r
+w = {'id':'sample', 'term':'Sample', 'also_called':['Synonym'], 'search_terms':['Search only'], 'aliases':['Deprecated only'], 'plain':'A sample.', 'naming':{'label':'Sample label','plural':'Sample labels','case':'sentence','status':'draft','scope':'A setting.','why':'A reason.','translation_note':'A note.','alternatives':[{'term':'Other name','status':'ambiguous','why':'Another meaning.','see':'other'}],'evidence':[{'service':'sample-service','label':'Observed label','support':'context-only','note':'A context source.','url':'https://example.org/source','read_on':'2026-11-15'}]}}
+names=r.word_names(w)
+assert all(x in names for x in ['Synonym','Search only','Other name','Sample labels'])
+assert 'Deprecated only' not in names
+target={'id':'other','term':'Other name','plain':'Another meaning.'}
+out=r.naming_entry(w,[w,target],[{'id':'sample-service','name':'Sample service'}])
+assert 'Where seen' in out and 'Context only' in out and 'Observed label' in out
+assert 'Sample service' in out and 'makers' not in out
+assert 'Other name usually means Another meaning.' in out
+assert 'glossary.html#other' in out
+`],{stdio:'pipe'});
+});

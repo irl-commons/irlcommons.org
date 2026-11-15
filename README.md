@@ -35,3 +35,8 @@ Code: MIT (`LICENSE`). Original prose and drawings: CC BY 4.0
 (`LICENSE-CONTENT`). Data from [IRL Commons](https://github.com/irl-commons/irl-commons),
 CC BY 4.0. Video thumbnails belong to their credited creators and are linked to
 the originals; they are not relicensed here. Fonts retain their bundled OFL notices.
+
+Glossary and naming search reads `also_called`, `search_terms` and every naming
+alternative term, along with the term, recommended label and plural. Deprecated
+`aliases` is not used. Naming sources are displayed as “Where seen”, with
+context-only sources identified, and without maker counts.

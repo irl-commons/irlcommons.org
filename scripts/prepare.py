@@ -11,7 +11,7 @@ rendered={}
 for src in (ROOT/'content').glob('*.html'):
  body=src.read_text()
  body=r.fill_words(body,data['words'])
- body=r.fill_naming(body,data['words'])
+ body=r.fill_naming(body,data['words'],data['services'])
  body=r.fill_standards(body,data['standards'],data['services'],data['words'])
  body=r.fill_services(body,data['services'])
  body=r.fill_calc(body,r.datause.load_model())
