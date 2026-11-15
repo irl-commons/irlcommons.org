@@ -2,10 +2,8 @@
 (function () {
   "use strict";
 
-  var KEY = "osb.stack.v1";
   var THEME_KEY = "osb.theme";
   var THEMES = ["auto", "dark", "light"];
-
 
   function readTheme(storage) {
     try {
@@ -14,7 +12,6 @@
     } catch (e) { return "auto"; }
   }
 
-
   function writeTheme(storage, theme) {
     try {
       if (theme === "dark" || theme === "light") storage.setItem(THEME_KEY, theme); else storage.removeItem(THEME_KEY);
@@ -22,52 +19,32 @@
     } catch (e) { return false; }
   }
 
-  function nextTheme(theme) {
-    return THEMES[(THEMES.indexOf(theme) + 1) % THEMES.length];
+  function shownTheme(theme, systemDark) {
+    return theme === "dark" || theme === "light" ? theme : (systemDark ? "dark" : "light");
+  }
+
+  function nextTheme(theme, systemDark) {
+    return shownTheme(theme, systemDark) === "dark" ? "light" : "dark";
   }
 
   var THEME_TEXT = {
-    en: { auto: "auto", dark: "dark", light: "light", label: "Colour theme: ", device: ", follows your device", press: ". Switch to ", tip: "Theme: " },
-    de: { auto: "automatisch", dark: "dunkel", light: "hell", label: "Farbschema: ", device: ", wie Ihr Gerät", press: ". Wechseln zu ", tip: "Farbschema: " }
+    en: { dark: "dark", light: "light", to: "Switch to ", theme: " theme" },
+    de: { dark: "dunkel", light: "hell", to: "Wechseln zu ", theme: "" }
   };
 
-
-  function themeLabel(theme, lang) {
+  function themeLabel(next, lang) {
     var t = THEME_TEXT[lang] || THEME_TEXT.en;
-    return t.label + t[theme] + (theme === "auto" ? t.device : "") + t.press + t[nextTheme(theme)] + ".";
+    return t.to + t[next] + t.theme;
   }
 
   function storageOrNull() {
     try { return window.localStorage; } catch (e) { return null; }
   }
 
-
-  function hasSaved(storage) {
-    try {
-      var v = JSON.parse((storage && storage.getItem(KEY)) || "null");
-      return !!v && Array.isArray(v.ids) && v.ids.length > 0;
-    } catch (e) { return false; }
-  }
-
-  var BETA_KEY = "osb.beta.hidden";
-
-
-  function betaHidden(storage) {
-    try { return !!storage && storage.getItem(BETA_KEY) === "1"; } catch (e) { return false; }
-  }
-  function hideBeta(storage) {
-    try { storage.setItem(BETA_KEY, "1"); return true; } catch (e) { return false; }
-  }
-  function sessionOrNull() {
-    try { return window.sessionStorage; } catch (e) { return null; }
-  }
-
-
   function movedUrl(target, hash) {
     if (!/^[a-z0-9-]+\.html$/.test(target || "")) return null;
     return target + (/^#[A-Za-z0-9_-]+$/.test(hash || "") ? hash : "");
   }
-
 
   function hashId(hash) {
     var raw = String(hash || "").replace(/^#/, "");
@@ -82,125 +59,12 @@
     document.documentElement.classList.add("fold-js");
     var early = readTheme(storageOrNull());
     if (early !== "auto") document.documentElement.setAttribute("data-theme", early);
-    if (betaHidden(sessionOrNull())) document.documentElement.classList.add("beta-hidden");
 
-    if (/(?:^#|&)stack=[a-z0-9]/.test(window.location.hash) || hasSaved(storageOrNull())) document.documentElement.classList.add("stack-collapsed");
   }
-  var ID = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
-
-
-  function splitHash(hash) {
-    var out = { section: "", stack: null };
-    String(hash || "").replace(/^#/, "").split("&").forEach(function (part) {
-      if (part.indexOf("stack=") === 0) { if (out.stack === null) out.stack = part.slice(6); }
-      else if (!out.section && /^[A-Za-z][A-Za-z0-9_-]*$/.test(part)) out.section = part;
-    });
-    return out;
-  }
-
-
-  function parseHash(hash, known) {
-    var raw = splitHash(hash).stack;
-    if (raw === null) return null;
-    var out = [];
-    raw.split(",").forEach(function (id) {
-      if (ID.test(id) && known.indexOf(id) !== -1 && out.indexOf(id) === -1) out.push(id);
-    });
-    return out;
-  }
-
-  function buildHash(ids) {
-    return "#stack=" + ids.filter(function (id) { return ID.test(id); }).join(",");
-  }
-
-
-  function stateHash(section, ids) {
-    var parts = [];
-    if (section && /^[A-Za-z][A-Za-z0-9_-]*$/.test(section)) parts.push(section);
-    var clean = ids.filter(function (id) { return ID.test(id); });
-    if (clean.length) parts.push("stack=" + clean.join(","));
-    return parts.length ? "#" + parts.join("&") : "";
-  }
-
-
-  function inOrder(ids, known) {
-    return known.filter(function (id) { return ids.indexOf(id) !== -1; });
-  }
-
-  function sameIds(a, b) {
-    return !!a && !!b && a.length === b.length && a.every(function (id) { return b.indexOf(id) !== -1; });
-  }
-
-
-  function startPicks(hash, known, savedIds) {
-    var fromLink = parseHash(hash, known);
-    if (fromLink && fromLink.length) {
-      var ids = inOrder(fromLink, known);
-      return { ids: ids, from: "link", remember: sameIds(savedIds, ids) };
-    }
-    if (savedIds) return { ids: inOrder(savedIds, known), from: "memory", remember: true };
-    return { ids: [], from: "none", remember: false };
-  }
-
-
-  function matches(dataStack, picked) {
-    return (dataStack || "").split(" ").some(function (id) { return id && picked.indexOf(id) !== -1; });
-  }
-
-
-  function store(storage) {
-    return {
-      load: function (known) {
-        try {
-          var v = JSON.parse(storage.getItem(KEY) || "null");
-          if (!v || !Array.isArray(v.ids)) return null;
-          return v.ids.filter(function (id) { return typeof id === "string" && known.indexOf(id) !== -1; });
-        } catch (e) { return null; }
-      },
-      save: function (ids) {
-        try { storage.setItem(KEY, JSON.stringify({ ids: ids })); return true; } catch (e) { return false; }
-      },
-      forget: function () {
-        try { storage.removeItem(KEY); return true; } catch (e) { return false; }
-      }
-    };
-  }
-
-  function listNames(names) {
-    if (names.length < 2) return names.join("");
-    return names.slice(0, -1).join(", ") + " and " + names[names.length - 1];
-  }
-
-
-  function fitLevel(needs, picked) {
-    var groups = String(needs || "").split("|").filter(Boolean);
-    var met = groups.filter(function (grp) { return matches(grp, picked); }).length;
-    if (!groups.length || !met) return null;
-    return met === groups.length ? "full" : "part";
-  }
-
-  function plural(n, one, many) { return n === 1 ? "1 " + one : n + " " + many; }
-
-
-  function describe(picked, counts) {
-    if (!picked.length) return "Nothing picked yet. All help shows in its usual order.";
-    var parts = [];
-    if (counts.full) parts.push(plural(counts.full, "guide that fits", "guides that fit"));
-    if (counts.part) parts.push(plural(counts.part, "guide that partly fits", "guides that partly fit"));
-    parts.push(plural(counts.asks, "place to ask", "places to ask"));
-    return "First on this page: " + listNames(parts) + ". Everything else follows below.";
-  }
-
-
-  function summaryText(names) {
-    return names.length ? names.join(", ") : "nothing picked yet";
-  }
-
 
   function norm(text) {
     return String(text || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
   }
-
 
   function wordMatches(haystack, query) {
     var hay = norm(haystack);
@@ -220,7 +84,6 @@
   }
 
   var MODES = ["single", "bonded", "redundant"];
-
 
   function dataUse(m, hours, videoMbps, audioKbps, mode, links, lossPct, recordMbps) {
     if (MODES.indexOf(mode) === -1) throw new Error("unknown mode " + mode);
@@ -276,7 +139,6 @@
 
   function group(n) { return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ","); }
 
-
   function fmtSize(b, m) {
     var halfUp = function (x) { return Math.floor(x + 0.5); };
     var gb = b / m.units.gb_bytes;
@@ -291,190 +153,13 @@
     return group(halfUp(gb)) + " GB";
   }
 
-
   function readNumber(text) {
     var t = String(text || "").trim().replace(",", ".");
     return /^\d*\.?\d+$|^\d+\.$/.test(t) ? parseFloat(t) : NaN;
   }
 
-  var api = { hashId: hashId, movedUrl: movedUrl, MODES: MODES, dataUse: dataUse, fmtSize: fmtSize, readNumber: readNumber, BETA_KEY: BETA_KEY, betaHidden: betaHidden, hideBeta: hideBeta, THEME_KEY: THEME_KEY, hasSaved: hasSaved, fitLevel: fitLevel, summaryText: summaryText, readTheme: readTheme, writeTheme: writeTheme, nextTheme: nextTheme, themeLabel: themeLabel, KEY: KEY, norm: norm, wordMatches: wordMatches, wordCount: wordCount, standardCount: standardCount, parseHash: parseHash, buildHash: buildHash, splitHash: splitHash, stateHash: stateHash, inOrder: inOrder, sameIds: sameIds, startPicks: startPicks, matches: matches, store: store, describe: describe, listNames: listNames };
+  var api = { hashId: hashId, movedUrl: movedUrl, MODES: MODES, dataUse: dataUse, fmtSize: fmtSize, readNumber: readNumber, THEME_KEY: THEME_KEY, readTheme: readTheme, writeTheme: writeTheme, shownTheme: shownTheme, nextTheme: nextTheme, themeLabel: themeLabel, norm: norm, wordMatches: wordMatches, wordCount: wordCount, standardCount: standardCount };
   if (typeof module === "object" && module.exports) { module.exports = api; return; }
-
-  function init() {
-    var form = document.getElementById("stack-form");
-    var extra = document.getElementById("stack-js");
-    var bar = document.getElementById("setup-bar");
-    if (!form || !extra || !bar) return;
-    var root = document.documentElement;
-    var section = document.getElementById("my-stack");
-    var picker = document.getElementById("setup-picker");
-    var edit = document.getElementById("setup-edit");
-    var namesOut = document.getElementById("setup-names");
-    var boxes = Array.prototype.slice.call(form.querySelectorAll('input[name="stack"]'));
-    var known = boxes.map(function (b) { return b.value; });
-    var remember = document.getElementById("stack-remember");
-    var forget = document.getElementById("stack-forget");
-    var copy = document.getElementById("stack-copy");
-    var note = document.getElementById("stack-link-note");
-    var status = document.getElementById("stack-status");
-    var find = document.getElementById("stack-q");
-    var findCount = document.getElementById("stack-find-count");
-    var noMatch = document.getElementById("stack-nomatch");
-    var picks = Array.prototype.slice.call(form.querySelectorAll(".pick"));
-    var steps = Array.prototype.slice.call(form.querySelectorAll(".stack-step"));
-    var storage = storageOrNull();
-    var saved = storage ? store(storage) : null;
-    if (!saved) { remember.disabled = true; forget.disabled = true; }
-    var collapsed = false;
-
-    function picked() { return boxes.filter(function (b) { return b.checked; }).map(function (b) { return b.value; }); }
-    function nameOf(id) {
-      var box = document.getElementById("pick-" + id);
-      var n = box && box.parentNode.querySelector(".pick-name");
-      return n ? n.textContent : id;
-    }
-    function setPicked(ids) { boxes.forEach(function (b) { b.checked = ids.indexOf(b.value) !== -1; }); }
-
-    function count(ids) {
-      var page = document.querySelector(".help-page");
-      var c = { full: 0, part: 0, asks: 0 };
-      Array.prototype.forEach.call(page.querySelectorAll("#guides li.fit"), function (li) {
-        var f = fitLevel(li.getAttribute("data-needs"), ids);
-        if (f) c[f]++;
-      });
-      Array.prototype.forEach.call(page.querySelectorAll("#where-to-ask tr.mine"), function (tr) { if (matches(tr.getAttribute("data-stack"), ids)) c.asks++; });
-      Array.prototype.forEach.call(page.querySelectorAll("#where-to-ask tr.fb"), function (tr) { if (ids.indexOf(tr.getAttribute("data-for")) !== -1) c.asks++; });
-      return c;
-    }
-
-    function showBar() {
-      var ids = picked();
-      namesOut.textContent = summaryText(ids.map(nameOf));
-      bar.classList.toggle("has-picks", ids.length > 0);
-      edit.textContent = collapsed ? (ids.length ? "Edit" : "Pick your apps") : (ids.length ? "Done" : "Hide the list");
-      edit.setAttribute("aria-expanded", collapsed ? "false" : "true");
-    }
-
-    function render() {
-      var ids = picked();
-      status.textContent = describe(ids, count(ids));
-      copy.disabled = !ids.length;
-      note.textContent = ids.length ? "The link holds only: " + listNames(ids.map(nameOf)) + "." : "Pick something first.";
-      showBar();
-    }
-
-    function setCollapsed(c, move) {
-      collapsed = c;
-      root.classList.toggle("stack-collapsed", c);
-      showBar();
-      if (!move) return;
-      if (c) {
-        if (bar.getBoundingClientRect().top < 0) bar.scrollIntoView({ block: "nearest" });
-      } else {
-        section.scrollIntoView({ block: "start" });
-        picker.focus({ preventScroll: true });
-      }
-    }
-
-
-    function sectionNow() {
-      var s = splitHash(window.location.hash).section;
-      return s && document.getElementById(s) ? s : "";
-    }
-
-    function stateUrl() {
-      return window.location.href.split("#")[0] + stateHash(sectionNow(), picked());
-    }
-    function jumpToSection(id) {
-      var target = id && document.getElementById(id);
-      if (target) target.scrollIntoView({ block: "start", behavior: "instant" });
-    }
-
-    function syncUrl() {
-      var hash = window.location.hash;
-      if (!picked().length && splitHash(hash).stack === null) return; // nothing to add or remove
-      var next = stateHash(sectionNow(), picked());
-      if (next === hash) return;
-      try {
-        window.history.replaceState(window.history.state, "", next || window.location.pathname + window.location.search);
-      } catch (e) {  }
-    }
-
-    function changed() {
-      if (saved && remember.checked) saved.save(picked());
-      syncUrl();
-      render();
-    }
-
-    function applyFind() {
-      var q = find.value.trim();
-      var shown = 0;
-      picks.forEach(function (li) {
-        var ok = wordMatches(li.getAttribute("data-search"), q);
-        li.hidden = !ok;
-        if (ok) shown++;
-      });
-      steps.forEach(function (fs) { fs.hidden = !fs.querySelector(".pick:not([hidden])"); });
-      form.classList.toggle("is-finding", q !== "");
-      noMatch.hidden = shown > 0;
-      findCount.textContent = q === "" ? "" : shown === 0 ? "" : plural(shown, "app or service matches.", "apps and services match.");
-    }
-
-    var start = startPicks(window.location.hash, known, saved ? saved.load(known) : null);
-    setPicked(start.ids);
-    remember.checked = start.remember;
-
-    var jumpTo = start.from === "link" ? sectionNow() : "";
-    collapsed = picked().length > 0 && root.classList.contains("stack-collapsed");
-
-    form.addEventListener("submit", function (ev) { ev.preventDefault(); });
-    form.addEventListener("change", function (ev) { if (ev.target !== find) changed(); });
-    form.addEventListener("reset", function () {
-      window.setTimeout(function () { find.dispatchEvent(new Event("input", { bubbles: true })); changed(); }, 0);
-    });
-    find.addEventListener("input", applyFind);
-    edit.addEventListener("click", function () { setCollapsed(!collapsed, true); });
-
-
-    window.addEventListener("hashchange", function () {
-      var fromLink = parseHash(window.location.hash, known);
-      if (fromLink && fromLink.length && !sameIds(inOrder(fromLink, known), picked())) {
-        var next = startPicks(window.location.hash, known, saved ? saved.load(known) : null);
-        setPicked(next.ids);
-        remember.checked = next.remember;
-      }
-      var jump = fromLink ? sectionNow() : ""; // "#guides&stack=…": the browser can't jump there itself
-      syncUrl();
-      render();
-      jumpToSection(jump);
-    });
-    remember.addEventListener("change", function () {
-      if (!saved) return;
-      if (remember.checked) saved.save(picked()); else saved.forget();
-      render();
-    });
-    forget.addEventListener("click", function () {
-      if (saved) saved.forget();
-      remember.checked = false;
-      status.textContent = "Removed from this device. Your picks stay in this page's address until you clear them.";
-    });
-    copy.addEventListener("click", function () {
-      var url = stateUrl();
-      var done = function () { status.textContent = "Link copied: " + url; };
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(url).then(done, function () { status.textContent = "Copy this link: " + url; });
-      } else {
-        status.textContent = "Copy this link: " + url;
-      }
-    });
-    document.getElementById("setup-find").hidden = false;
-    extra.hidden = false;
-    bar.hidden = false;
-    setCollapsed(collapsed, false);
-    syncUrl();
-    render();
-    jumpToSection(jumpTo);
-  }
 
   function initWords() {
     var tools = document.getElementById("word-tools");
@@ -503,7 +188,6 @@
     apply();
   }
 
-
   function initStandards() {
     var tools = document.getElementById("std-tools");
     if (!tools) return;
@@ -511,8 +195,8 @@
     var count = document.getElementById("std-count");
     var none = document.getElementById("no-std");
     var reset = document.getElementById("std-reset");
-    var entries = Array.prototype.slice.call(document.querySelectorAll(".std"));
-    var groups = Array.prototype.slice.call(document.querySelectorAll(".std-group"));
+    var entries = Array.prototype.slice.call(document.querySelectorAll(".std, .block"));
+    var groups = Array.prototype.slice.call(document.querySelectorAll(".std-group, #building-blocks"));
     var opened = []; // group lists the search opened, closed again when the search is cleared
     function apply() {
       var shown = 0;
@@ -523,7 +207,7 @@
         if (ok) shown++;
       });
       groups.forEach(function (g) {
-        var empty = !g.querySelector(".std:not([hidden])");
+        var empty = !g.querySelector(".std:not([hidden]), .block:not([hidden])");
         g.hidden = empty;
         var li = document.querySelector('.toc li[data-for="' + g.id + '"]');
         if (li) li.hidden = empty;
@@ -539,7 +223,6 @@
     tools.hidden = false;
     apply();
   }
-
 
   function initClear() {
     var SVG = "http://www.w3.org/2000/svg";
@@ -589,34 +272,60 @@
     var tip = button.querySelector(".theme-tip");
     var storage = storageOrNull();
     var theme = readTheme(storage);
+    var media = window.matchMedia ? window.matchMedia("(prefers-color-scheme: dark)") : null;
+    function systemDark() { return !!(media && media.matches); }
     function show() {
-      button.setAttribute("data-mode", theme);
-      button.setAttribute("aria-label", themeLabel(theme, lang));
-      if (tip) tip.textContent = (THEME_TEXT[lang] || THEME_TEXT.en).tip + (THEME_TEXT[lang] || THEME_TEXT.en)[theme];
+      var next = nextTheme(theme, systemDark());
+      button.setAttribute("data-mode", next);
+      button.setAttribute("aria-label", themeLabel(next, lang));
+      if (tip) tip.textContent = themeLabel(next, lang);
     }
     button.addEventListener("click", function () {
-      theme = nextTheme(theme);
-      if (theme === "auto") root.removeAttribute("data-theme"); else root.setAttribute("data-theme", theme);
+      theme = nextTheme(theme, systemDark());
+      root.setAttribute("data-theme", theme);
       if (storage) writeTheme(storage, theme);
       show();
     });
+    if (media && media.addEventListener) media.addEventListener("change", show);
     show();
     button.hidden = false;
   }
 
   function initBeta() {
-    var close = document.getElementById("beta-close");
-    if (!close) return;
-    close.addEventListener("click", function () {
-      var storage = sessionOrNull();
-      if (storage) hideBeta(storage);
-      document.documentElement.classList.add("beta-hidden");
-      var main = document.getElementById("main");
-      if (main) { main.setAttribute("tabindex", "-1"); main.focus(); }
+    var badge = document.querySelector(".beta-badge");
+    var tip = document.getElementById("beta-tip");
+    if (!badge || !tip || typeof tip.showPopover !== "function") return;
+    var wrap = badge.parentNode;
+    var pinned = false, timer = null;
+    badge.removeAttribute("popovertarget"); // script handles clicks, so a click after hovering keeps the note open
+    badge.setAttribute("aria-expanded", "false");
+    function isOpen() { try { return tip.matches(":popover-open"); } catch (e) { return false; } }
+    function place() {
+      if (window.CSS && CSS.supports && CSS.supports("anchor-name: --beta")) return;
+      var r = badge.getBoundingClientRect();
+      tip.style.top = Math.round(r.bottom + 6) + "px";
+      tip.style.left = Math.max(16, Math.min(Math.round(r.left), window.innerWidth - tip.offsetWidth - 16)) + "px";
+    }
+    function open(pin) {
+      window.clearTimeout(timer);
+      if (pin) pinned = true;
+      if (!isOpen()) { try { tip.showPopover(); } catch (e) { return; } }
+      place();
+    }
+    function close() { pinned = false; if (isOpen()) { try { tip.hidePopover(); } catch (e) {} } }
+    function later() { window.clearTimeout(timer); timer = window.setTimeout(function () { if (!pinned && !wrap.matches(":hover") && !wrap.contains(document.activeElement)) close(); }, 200); }
+    badge.addEventListener("click", function () { if (isOpen() && pinned) close(); else open(true); });
+    wrap.addEventListener("mouseenter", function () { open(false); });
+    wrap.addEventListener("mouseleave", later);
+    badge.addEventListener("focus", function () { open(false); });
+    wrap.addEventListener("focusout", later);
+    tip.addEventListener("toggle", function (ev) {
+      var on = ev.newState === "open";
+      if (!on) pinned = false;
+      badge.setAttribute("aria-expanded", on ? "true" : "false");
     });
-    close.hidden = false;
+    window.addEventListener("resize", function () { if (isOpen()) place(); });
   }
-
 
   function reveal(el) {
     var opened = false;
@@ -625,7 +334,6 @@
     }
     return opened;
   }
-
 
   function initFold() {
     var root = document.documentElement;
@@ -649,7 +357,6 @@
     }
   }
 
-
   function landTarget() {
     var target = document.getElementById(hashId(window.location.hash));
     if (!target || !target.getClientRects().length) return;
@@ -657,7 +364,6 @@
     var margin = parseFloat(window.getComputedStyle(target).scrollMarginTop) || 0;
     if (Math.abs(top - margin) > 4) target.scrollIntoView({ block: "start", behavior: "instant" });
   }
-
 
   function initPermalinks() {
     if (!document.querySelector("a.permalink")) return;
@@ -688,7 +394,6 @@
     });
   }
 
-
   function initCalc() {
     var box = document.getElementById("calc");
     if (!box) return;
@@ -706,7 +411,6 @@
     var last = "";
 
     function mode() { var r = radios.filter(function (x) { return x.checked; })[0]; return r ? r.value : "bonded"; }
-
 
     function read() {
       var bad = [];
@@ -782,41 +486,68 @@
     render(false);
   }
 
-  function start() { initFold(); initTheme(); initBeta(); init(); initWords(); initStandards(); initClear(); initPermalinks(); initCalc(); landTarget(); }
+  function start() { initFold(); initTheme(); initBeta(); initWords(); initStandards(); initClear(); initPermalinks(); initCalc(); landTarget(); }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", start);
   else start();
 })();
 
-
 (function () {
   "use strict";
 
+  // Help, the guide directory: filters by part of the chain, kind and product, plus search. Without script each
+  // filter is a link to an empty anchor and help-filters.css hides the rest; with script they combine, the search
+  // and the filters live in the address (reload and links keep them), and the count says what shows.
+  var GROUPS = [["part", "guides-"], ["kind", "kind-"], ["for", "for-"]];
 
   function norm(text) {
     return String(text || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
   }
-
 
   function rowMatches(search, q) {
     var hay = norm(search);
     return norm(q).split(/\s+/).filter(Boolean).every(function (piece) { return hay.indexOf(piece) !== -1; });
   }
 
+  // "#guides-obs", "#kind-video", "#for-moblin", or several at once: "#guides?part=obs&kind=video&for=moblin&q=mob".
+  // Older addresses still land: "#part=obs&problem=…", "#q=moblin", "#stack=moblin,irl-pro", "#ask-moblin".
+  function parseState(hash) {
+    var raw = String(hash || "").replace(/^#/, "");
+    var st = { part: "", kind: "", for: "", q: "", row: "", away: "" };
+    var ask = /^ask-([a-z0-9-]+)$/.exec(raw);
+    if (ask) { st.away = "links.html#" + ask[1]; return st; }
+    if (raw === "where-to-ask") { st.away = "links.html"; return st; }
+    var single = /^(guides-|kind-|for-)([a-z0-9-]+)$/.exec(raw);
+    if (single) { st[{ "guides-": "part", "kind-": "kind", "for-": "for" }[single[1]]] = single[2]; return st; }
+    var query = raw.indexOf("?") !== -1 ? raw.slice(raw.indexOf("?") + 1) : (raw.indexOf("=") !== -1 ? raw : "");
+    if (!query) { if (/^[a-z0-9-]+$/.test(raw) && raw !== "guides") st.row = raw; return st; }
+    query.split("&").forEach(function (pair) {
+      var i = pair.indexOf("="); if (i < 1) return;
+      var k = pair.slice(0, i), v = pair.slice(i + 1);
+      try { v = decodeURIComponent(v.replace(/\+/g, " ")); } catch (e) { return; }
+      if (k === "part" || k === "kind" || k === "for") { if (/^[a-z0-9-]+$/.test(v)) st[k] = v; }
+      else if (k === "q") st.q = v.slice(0, 80);
+      else if (k === "stack" && !st.for) st.for = (v.split(",")[0] || "").replace(/[^a-z0-9-]/g, "");
+    });
+    return st;
+  }
 
-  function oldHelpTarget(raw) {
-    var m = /^ask-([a-z0-9-]+)$/.exec(raw);
-    if (m) return "links.html#" + m[1];
-    if (raw === "where-to-ask") return "links.html";
-    if (raw.indexOf("=") === -1) return null;
-    var part = /(?:^|&)part=([a-z]+)(?:&|$)/.exec(raw);
-    if (part) return "#guides-" + part[1];
-    var q = /(?:^|&)q=([^&]*)/.exec(raw);
-    if (q) { try { return "#guides?q=" + decodeURIComponent(q[1].replace(/\+/g, " ")).slice(0, 80); } catch (e) { return "#guides"; } }
-    return "#guides";
+  function stateHash(st) {
+    var set = GROUPS.filter(function (g) { return st[g[0]]; });
+    if (!st.q && set.length === 0) return "#guides";
+    if (!st.q && set.length === 1) return "#" + set[0][1] + st[set[0][0]];
+    var parts = set.map(function (g) { return g[0] + "=" + st[g[0]]; });
+    if (st.q) parts.push("q=" + encodeURIComponent(st.q));
+    return "#guides?" + parts.join("&");
+  }
+
+  function countText(shown, total, filtered) {
+    if (!filtered) return "Showing all " + total + " guides.";
+    if (shown === 0) return "No guide matches.";
+    return "Showing " + shown + " of " + total + " guide" + (total === 1 ? "" : "s") + ".";
   }
 
   if (typeof module === "object" && module.exports) {
-    module.exports = { rowMatches: rowMatches, oldHelpTarget: oldHelpTarget };
+    module.exports = { rowMatches: rowMatches, parseState: parseState, stateHash: stateHash, countText: countText };
     return;
   }
 
@@ -824,52 +555,97 @@
 
   function initHelp() {
     var page = document.querySelector(".help-page");
-    if (!page) return;
-    var start = "";
-    var old = oldHelpTarget(window.location.hash.replace(/^#/, ""));
-    if (old && old.charAt(0) !== "#") { window.location.replace(old); return; }
-    if (old) { // a same-page replace, so the new anchor becomes the :target (a filter) without a history entry
-      var bits = old.split("?q=");
-      start = bits[1] || "";
-      window.location.replace(document.getElementById(bits[0].slice(1)) ? bits[0] : "#guides");
-    }
+    if (!page || !document.querySelector(".ix-rows")) return;
+    var first = parseState(window.location.hash);
+    if (first.away) { window.location.replace(first.away); return; }
     var search = document.getElementById("dir-search");
-    if (!search) return;
     var q = document.getElementById("dir-q");
     var count = document.getElementById("dir-count");
     var none = document.getElementById("dir-none");
-    var rows = Array.prototype.slice.call(page.querySelectorAll(".dir-row"));
-    var picks = Array.prototype.slice.call(page.querySelectorAll(".dir-pick"));
+    var prod = document.getElementById("by-product");
+    var cur = prod ? prod.querySelector(".fcur") : null;
+    var rows = Array.prototype.slice.call(page.querySelectorAll(".ix-row"));
+    var links = Array.prototype.slice.call(page.querySelectorAll("a[data-f]"));
+    var known = {};
+    links.forEach(function (a) { known[a.getAttribute("data-f")] = a; });
+    var st = { part: "", kind: "", for: "", q: "" };
 
-    function shown(li) { return !li.hidden && window.getComputedStyle(li).display !== "none"; }
-    function apply() {
-      rows.forEach(function (li) { li.hidden = !rowMatches(li.getAttribute("data-search") || "", q.value.trim()); });
-      var n = rows.filter(shown).length;
-      none.hidden = n > 0;
-      count.textContent = n && n < rows.length ? "Showing " + n + " of " + rows.length + " guides." : "";
+    function take(next) {
+      GROUPS.forEach(function (g) { st[g[0]] = next[g[0]] && known[g[1] + next[g[0]]] ? next[g[0]] : ""; });
+      st.q = next.q || "";
+      q.value = st.q;
     }
-    function openTarget() {
-      var id = window.location.hash.replace(/^#/, "");
-      var row = /^[a-z0-9-]+$/.test(id) ? document.getElementById(id) : null;
-      if (row && row.classList.contains("dir-row")) { var d = row.querySelector(".dir-more"); if (d) d.open = true; }
+    function rowOk(li) {
+      if (st.part && (" " + li.getAttribute("data-p") + " ").indexOf(" " + st.part + " ") === -1) return false;
+      if (st.kind && li.getAttribute("data-k") !== st.kind) return false;
+      if (st.for && (" " + li.getAttribute("data-c") + " ").indexOf(" " + st.for + " ") === -1) return false;
+      return rowMatches(li.getAttribute("data-search") || "", st.q.trim());
     }
-    function reset() {
-      q.value = "";
-      if (/^#(guides-|for-|kind-)/.test(window.location.hash)) window.location.replace("#guides");
-      apply();
+    function syncUrl() {
+      var h = stateHash(st);
+      if (h === window.location.hash || (h === "#guides" && !window.location.hash)) return;
+      try { window.history.replaceState(window.history.state, "", h === "#guides" ? window.location.pathname + window.location.search : h); } catch (e) {  }
+    }
+    function apply(write) {
+      var shown = 0;
+      rows.forEach(function (li) { var ok = rowOk(li); li.hidden = !ok; if (ok) shown++; });
+      links.forEach(function (a) {
+        var f = a.getAttribute("data-f"), on = GROUPS.some(function (g) { return st[g[0]] && g[1] + st[g[0]] === f; });
+        a.classList.toggle("is-on", on);
+        if (on) a.setAttribute("aria-current", "true"); else a.removeAttribute("aria-current");
+      });
+      if (cur) cur.textContent = st.for && known["for-" + st.for] ? known["for-" + st.for].firstChild.textContent.trim() : "";
+      var fsum = prod ? prod.querySelector(".fsum") : null;
+      if (fsum) fsum.hidden = !!(st.for && known["for-" + st.for]);
+      var filtered = !!(st.part || st.kind || st.for || st.q.trim());
+      count.textContent = "";
+      count.appendChild(document.createTextNode(countText(shown, rows.length, filtered)));
+      if (filtered) {
+        var b = document.createElement("button");
+        b.type = "button"; b.className = "btn"; b.textContent = "Clear filters";
+        b.addEventListener("click", function () { reset(); q.focus(); });
+        count.appendChild(b);
+      }
+      none.hidden = shown > 0;
+      if (write) syncUrl();
+    }
+    function reset() { take({}); apply(true); }
+    function openRow(id) {
+      var row = id && /^[a-z0-9-]+$/.test(id) ? document.getElementById(id) : null;
+      if (row && row.classList.contains("ix-row")) { var d = row.querySelector(".ix-more"); if (d) d.open = true; }
     }
 
-    q.addEventListener("input", apply);
-    none.querySelector("button").addEventListener("click", function () { reset(); q.focus(); });
-    picks.forEach(function (d) {
-      d.addEventListener("click", function (ev) { if (ev.target.closest("ul a")) d.open = false; });
+    page.classList.add("ix-js");
+    page.querySelector(".fnote-all").hidden = true;
+    count.hidden = false;
+    links.forEach(function (a) {
+      a.addEventListener("click", function (ev) {
+        ev.preventDefault();
+        var f = a.getAttribute("data-f");
+        GROUPS.forEach(function (g) { if (f.indexOf(g[1]) === 0) st[g[0]] = st[g[0]] === f.slice(g[1].length) ? "" : f.slice(g[1].length); });
+        if (prod && prod.contains(a)) prod.open = false;
+        apply(true);
+      });
     });
-
-    window.addEventListener("hashchange", function () { openTarget(); window.requestAnimationFrame(apply); });
+    q.addEventListener("input", function () { st.q = q.value; apply(true); });
+    none.querySelector("button").addEventListener("click", function () { reset(); q.focus(); });
+    // A click anywhere on a row that isn't a link opens or closes its details, like the whole-row disclosure of Index B.
+    rows.forEach(function (li) {
+      li.addEventListener("click", function (ev) {
+        if (ev.target.closest("a, summary, button, input, .ix-body")) return;
+        var d = li.querySelector(".ix-more"); if (d) d.open = !d.open;
+      });
+    });
+    window.addEventListener("hashchange", function () {
+      var next = parseState(window.location.hash);
+      if (next.away) { window.location.replace(next.away); return; }
+      if (next.row) { openRow(next.row); return; }
+      take(next); apply(/=/.test(window.location.hash));
+    });
     search.hidden = false;
-    q.value = start;
-    openTarget();
-    apply();
+    take(first);
+    openRow(first.row);
+    apply(/=/.test(window.location.hash)); // an older address is rewritten to today's form; a row's own anchor stays
   }
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", initHelp);
