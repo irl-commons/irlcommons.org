@@ -93,7 +93,7 @@ def words_entries(words: list[dict], lang: str) -> str:
         links += [f'<li>{guide_link(g)}</li>' for g in guides_for('words', w['id'])]
         if links:
             # Closed by default: the main glossary stays word, explanation and "Also called".
-            rows.append(f'''<dd class="word-more"><details><summary>{t['more']}<span class="vh"> {t['about']} {html.escape(term, quote=False)}</span></summary><ul>{''.join(links)}</ul></details></dd>''')
+            rows.append(f'''<dd class="word-more"><details id="{w['id']}-more"><summary>{t['more']}<span class="vh"> {t['about']} {html.escape(term, quote=False)}</span></summary><ul>{''.join(links)}</ul></details></dd>''')
         rows.append(f'<dd class="edit-line">{edit_icon("words", w["id"], term)}</dd>')
         hay = ' '.join([*word_names(w), plain]).lower()
         out.append(f'''        <div class="entry" id="{w['id']}" data-search="{html.escape(hay)}">\n          <dt>{html.escape(term, quote=False)}</dt>\n          ''' + '\n          '.join(rows) + '\n        </div>')

@@ -71,10 +71,9 @@
     return norm(query).split(/\s+/).filter(Boolean).every(function (piece) { return hay.indexOf(piece) !== -1; });
   }
 
+  // Glossary count: a short "12 / 31" on screen, "12 of 31 words" for screen readers.
   function wordCount(shown, total) {
-    if (shown === total) return "Showing all " + total + " words.";
-    if (shown === 0) return "No words match.";
-    return "Showing " + shown + " of " + total + " words.";
+    return { shown: shown + " / " + total, said: shown + " of " + total + " words" };
   }
 
   function standardCount(shown, total) {
@@ -166,11 +165,15 @@
     if (!tools) return;
     var q = document.getElementById("word-q");
     var count = document.getElementById("word-count");
-    var none = document.getElementById("no-words");
-    var reset = document.getElementById("word-reset");
     var entries = Array.prototype.slice.call(document.querySelectorAll(".glossary .entry"));
     var toc = {};
     Array.prototype.forEach.call(document.querySelectorAll(".toc li[data-for]"), function (li) { toc[li.getAttribute("data-for")] = li; });
+    var seen = document.createElement("span");
+    seen.setAttribute("aria-hidden", "true");
+    var said = document.createElement("span");
+    said.className = "vh";
+    count.appendChild(seen);
+    count.appendChild(said);
     function apply() {
       var shown = 0;
       entries.forEach(function (e) {
@@ -179,13 +182,38 @@
         if (toc[e.id]) toc[e.id].hidden = !ok;
         if (ok) shown++;
       });
-      count.textContent = wordCount(shown, entries.length);
-      none.hidden = shown > 0;
+      var c = wordCount(shown, entries.length);
+      seen.textContent = c.shown;
+      said.textContent = c.said;
+    }
+    // A deep link (#word, or #word-more for its further reading) always lands: a search that hides the word is
+    // cleared, the word's "More" opens when the link points into it, and the word is highlighted for a moment.
+    function show(id, scroll) {
+      var t = id && document.getElementById(id);
+      var entry = t && t.closest ? t.closest(".glossary .entry") : null;
+      if (!entry) return;
+      if (entry.hidden) { q.value = ""; q.dispatchEvent(new Event("input", { bubbles: true })); }
+      if (t.tagName === "DETAILS") t.open = true;
+      else reveal(t);
+      entry.classList.remove("is-landed");
+      void entry.offsetWidth; // restart the highlight when the same word is linked again
+      entry.classList.add("is-landed");
+      if (scroll) t.scrollIntoView({ block: "start" });
     }
     q.addEventListener("input", apply);
-    reset.addEventListener("click", function () { q.value = ""; q.dispatchEvent(new Event("input", { bubbles: true })); q.focus(); });
     tools.hidden = false;
     apply();
+    show(hashId(window.location.hash), false); // landTarget() scrolls there once the page is set up
+    document.addEventListener("click", function (ev) {
+      var a = ev.target && ev.target.closest ? ev.target.closest('a[href^="#"]') : null;
+      if (!a) return;
+      var id = hashId(a.getAttribute("href"));
+      // The same address again fires no hashchange, so this covers it too.
+      if (id && id === hashId(window.location.hash)) { ev.preventDefault(); show(id, true); }
+      else show(id, false);
+    });
+    window.addEventListener("hashchange", function () { show(hashId(window.location.hash), true); });
+    entries.forEach(function (e) { e.addEventListener("animationend", function () { e.classList.remove("is-landed"); }); });
   }
 
   function initStandards() {

@@ -900,11 +900,17 @@ input.has-clear::-webkit-search-cancel-button { -webkit-appearance: none; appear
 @media print { .step-bar { display: none !important; } }
 
 
-.word-tools { display: grid; gap: var(--s1); margin: 0 0 var(--s3); padding: var(--s2) 0; border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); }
-.word-tools[hidden], .no-words[hidden], .glossary .entry[hidden], .toc li[hidden] { display: none !important; }
-.word-count { margin: 0; font-size: var(--t-small); color: var(--muted); }
-.no-words { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin: 0 0 var(--s3); }
-@media print { .word-tools, .no-words { display: none !important; } }
+/* Glossary search: one row, the search on the left and a small "12 / 31" on the right. The entries' own top
+   rules separate it from the list, so it has no line below. */
+.word-tools { display: flex; align-items: flex-end; gap: 8px 16px; margin: 0 0 var(--s1); padding: var(--s2) 0 0; border-top: 1px solid var(--rule); }
+.word-tools .word-search { flex: 1 1 auto; min-width: 0; }
+.word-tools[hidden], .glossary .entry[hidden], .toc li[hidden] { display: none !important; }
+.word-count { flex: none; margin: 0 0 0 auto; min-height: 44px; display: flex; align-items: center; font: 500 var(--t-meta)/1.2 var(--mono); color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+@media print { .word-tools { display: none !important; } }
+/* A deep-linked word lights up for a moment. */
+@keyframes word-landed { from { background-color: var(--sunk); } to { background-color: transparent; } }
+.glossary .entry.is-landed { animation: word-landed 1.6s ease-out 0.2s both; }
+@media (prefers-reduced-motion: reduce) { .glossary .entry.is-landed { animation-duration: 0.01s; animation-delay: 1.2s; } }
 
 
 .std-list { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0 var(--s5); }
@@ -1494,6 +1500,7 @@ details.sources > .tip-src { display: block; margin-top: 0; margin-bottom: 8px; 
 
 /* Glossary: further reading per word, folded into one quiet "More" that starts closed. */
 .glossary .word-more { margin: 0; }
+.glossary .word-more > details { scroll-margin-top: var(--s3); }
 .glossary .word-more > details > summary { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; font-size: var(--t-meta); color: var(--muted); cursor: pointer; list-style: none; }
 .glossary .word-more > details > summary::-webkit-details-marker { display: none; }
 .glossary .word-more > details > summary::after { content: ""; width: 6px; height: 6px; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: translateY(-2px) rotate(45deg); }
