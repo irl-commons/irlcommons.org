@@ -1,0 +1,108 @@
+/* Guide filters, derived from upstream data. */
+.dir-note { display: none; }
+@supports selector(:has(a)) {
+  .help-page:has(#guides-camera:target) .dir-row:not([data-p~="camera"]) { display: none; }
+  .help-page:has(#guides-camera:target) .dir-pick a[href="#guides-camera"] { border-color: var(--fg); background: var(--sunk); box-shadow: inset 0 -3px 0 var(--fg); }
+  .help-page:has(#guides-camera:target) .dir-note[data-f="guides-camera"] { display: block; }
+  .help-page:has(#guides-camera:target) #by-part .dir-cur::before { content: ": Camera and mic"; }
+  .help-page:has(#guides-sender:target) .dir-row:not([data-p~="sender"]) { display: none; }
+  .help-page:has(#guides-sender:target) .dir-pick a[href="#guides-sender"] { border-color: var(--fg); background: var(--sunk); box-shadow: inset 0 -3px 0 var(--fg); }
+  .help-page:has(#guides-sender:target) .dir-note[data-f="guides-sender"] { display: block; }
+  .help-page:has(#guides-sender:target) #by-part .dir-cur::before { content: ": Sender"; }
+  .help-page:has(#guides-connections:target) .dir-row:not([data-p~="connections"]) { display: none; }
+  .help-page:has(#guides-connections:target) .dir-pick a[href="#guides-connections"] { border-color: var(--fg); background: var(--sunk); box-shadow: inset 0 -3px 0 var(--fg); }
+  .help-page:has(#guides-connections:target) .dir-note[data-f="guides-connections"] { display: block; }
+  .help-page:has(#guides-connections:target) #by-part .dir-cur::before { content: ": Connections"; }
+  .help-page:has(#guides-receiver:target) .dir-row:not([data-p~="receiver"]) { display: none; }
+  .help-page:has(#guides-receiver:target) .dir-pick a[href="#guides-receiver"] { border-color: var(--fg); background: var(--sunk); box-shadow: inset 0 -3px 0 var(--fg); }
+  .help-page:has(#guides-receiver:target) .dir-note[data-f="guides-receiver"] { display: block; }
+  .help-page:has(#guides-receiver:target) #by-part .dir-cur::before { content: ": Receiver"; }
+  .help-page:has(#guides-obs:target) .dir-row:not([data-p~="obs"]) { display: none; }
+  .help-page:has(#guides-obs:target) .dir-pick a[href="#guides-obs"] { border-color: var(--fg); background: var(--sunk); box-shadow: inset 0 -3px 0 var(--fg); }
+  .help-page:has(#guides-obs:target) .dir-note[data-f="guides-obs"] { display: block; }
+  .help-page:has(#guides-obs:target) #by-part .dir-cur::before { content: ": OBS"; }
+  .help-page:has(#guides-platform:target) .dir-row:not([data-p~="platform"]) { display: none; }
+  .help-page:has(#guides-platform:target) .dir-pick a[href="#guides-platform"] { border-color: var(--fg); background: var(--sunk); box-shadow: inset 0 -3px 0 var(--fg); }
+  .help-page:has(#guides-platform:target) .dir-note[data-f="guides-platform"] { display: block; }
+  .help-page:has(#guides-platform:target) #by-part .dir-cur::before { content: ": Platform"; }
+  .help-page:has(#for-belabox:target) .dir-row:not([data-c~="belabox"]) { display: none; }
+  .help-page:has(#for-belabox:target) .dir-pick a[href="#for-belabox"] { border-color: var(--fg); background: var(--sunk); box-shadow: inset 0 -3px 0 var(--fg); }
+  .help-page:has(#for-belabox:target) .dir-note[data-f="for-belabox"] { display: block; }
+  .help-page:has(#for-belabox:target) #by-product .dir-cur::before { content: ": BELABOX"; }
+  .help-page:has(#for-belabox-cloud:target) .dir-row:not([data-c~="belabox-cloud"]) { display: none; }
+  .help-page:has(#for-belabox-cloud:target) .dir-pick a[href="#for-belabox-cloud"] { border-color: var(--fg); background: var(--sunk); box-shadow: inset 0 -3px 0 var(--fg); }
+  .help-page:has(#for-belabox-cloud:target) .dir-note[data-f="for-belabox-cloud"] { display: block; }
+  .help-page:has(#for-belabox-cloud:target) #by-product .dir-cur::before { content: ": BELABOX Cloud"; }
+  .help-page:has(#for-bond-bunny:target) .dir-row:not([data-c~="bond-bunny"]) { display: none; }
+  .help-page:has(#for-bond-bunny:target) .dir-pick a[href="#for-bond-bunny"] { border-color: var(--fg); background: var(--sunk); box-shadow: inset 0 -3px 0 var(--fg); }
+  .help-page:has(#for-bond-bunny:target) .dir-note[data-f="for-bond-bunny"] { display: block; }
+  .help-page:has(#for-bond-bunny:target) #by-product .dir-cur::before { content: ": Bond Bunny"; }
+  .help-page:has(#for-ceralive:target) .dir-row:not([data-c~="ceralive"]) { display: none; }
+  .help-page:has(#for-ceralive:target) .dir-pick a[href="#for-ceralive"] { border-color: var(--fg); background: var(--sunk); box-shadow: inset 0 -3px 0 var(--fg); }
+  .help-page:has(#for-ceralive:target) .dir-note[data-f="for-ceralive"] { display: block; }
+  .help-page:has(#for-ceralive:target) #by-product .dir-cur::before { content: ": CeraLive"; }
+  .help-page:has(#for-irl-pro:target) .dir-row:not([data-c~="irl-pro"]) { display: none; }
+  .help-page:has(#for-irl-pro:target) .dir-pick a[href="#for-irl-pro"] { border-color: var(--fg); background: var(--sunk); box-shadow: inset 0 -3px 0 var(--fg); }
+  .help-page:has(#for-irl-pro:target) .dir-note[data-f="for-irl-pro"] { display: block; }
+  .help-page:has(#for-irl-pro:target) #by-product .dir-cur::before { content: ": IRL Pro"; }
+  .help-page:has(#for-irlhosting:target) .dir-row:not([data-c~="irlhosting"]) { display: none; }
+  .help-page:has(#for-irlhosting:target) .dir-pick a[href="#for-irlhosting"] { border-color: var(--fg); background: var(--sunk); box-shadow: inset 0 -3px 0 var(--fg); }
+  .help-page:has(#for-irlhosting:target) .dir-note[data-f="for-irlhosting"] { display: block; }
+  .help-page:has(#for-irlhosting:target) #by-product .dir-cur::before { content: ": IRLhosting"; }
+  .help-page:has(#for-irltoolkit:target) .dir-row:not([data-c~="irltoolkit"]) { display: none; }
+  .help-page:has(#for-irltoolkit:target) .dir-pick a[href="#for-irltoolkit"] { border-color: var(--fg); background: var(--sunk); box-shadow: inset 0 -3px 0 var(--fg); }
+  .help-page:has(#for-irltoolkit:target) .dir-note[data-f="for-irltoolkit"] { display: block; }
+  .help-page:has(#for-irltoolkit:target) #by-product .dir-cur::before { content: ": IRLToolkit"; }
+  .help-page:has(#for-lifestreamer:target) .dir-row:not([data-c~="lifestreamer"]) { display: none; }
+  .help-page:has(#for-lifestreamer:target) .dir-pick a[href="#for-lifestreamer"] { border-color: var(--fg); background: var(--sunk); box-shadow: inset 0 -3px 0 var(--fg); }
+  .help-page:has(#for-lifestreamer:target) .dir-note[data-f="for-lifestreamer"] { display: block; }
+  .help-page:has(#for-lifestreamer:target) #by-product .dir-cur::before { content: ": LifeStreamer"; }
+  .help-page:has(#for-liveu-solo:target) .dir-row:not([data-c~="liveu-solo"]) { display: none; }
+  .help-page:has(#for-liveu-solo:target) .dir-pick a[href="#for-liveu-solo"] { border-color: var(--fg); background: var(--sunk); box-shadow: inset 0 -3px 0 var(--fg); }
+  .help-page:has(#for-liveu-solo:target) .dir-note[data-f="for-liveu-solo"] { display: block; }
+  .help-page:has(#for-liveu-solo:target) #by-product .dir-cur::before { content: ": LiveU Solo"; }
+  .help-page:has(#for-mediasrvr:target) .dir-row:not([data-c~="mediasrvr"]) { display: none; }
+  .help-page:has(#for-mediasrvr:target) .dir-pick a[href="#for-mediasrvr"] { border-color: var(--fg); background: var(--sunk); box-shadow: inset 0 -3px 0 var(--fg); }
+  .help-page:has(#for-mediasrvr:target) .dir-note[data-f="for-mediasrvr"] { display: block; }
+  .help-page:has(#for-mediasrvr:target) #by-product .dir-cur::before { content: ": MediaSrvr"; }
+  .help-page:has(#for-moblin:target) .dir-row:not([data-c~="moblin"]) { display: none; }
+  .help-page:has(#for-moblin:target) .dir-pick a[href="#for-moblin"] { border-color: var(--fg); background: var(--sunk); box-shadow: inset 0 -3px 0 var(--fg); }
+  .help-page:has(#for-moblin:target) .dir-note[data-f="for-moblin"] { display: block; }
+  .help-page:has(#for-moblin:target) #by-product .dir-cur::before { content: ": Moblin"; }
+  .help-page:has(#for-noalbs-cloud:target) .dir-row:not([data-c~="noalbs-cloud"]) { display: none; }
+  .help-page:has(#for-noalbs-cloud:target) .dir-pick a[href="#for-noalbs-cloud"] { border-color: var(--fg); background: var(--sunk); box-shadow: inset 0 -3px 0 var(--fg); }
+  .help-page:has(#for-noalbs-cloud:target) .dir-note[data-f="for-noalbs-cloud"] { display: block; }
+  .help-page:has(#for-noalbs-cloud:target) #by-product .dir-cur::before { content: ": NOALBS Cloud"; }
+  .help-page:has(#for-nodrop:target) .dir-row:not([data-c~="nodrop"]) { display: none; }
+  .help-page:has(#for-nodrop:target) .dir-pick a[href="#for-nodrop"] { border-color: var(--fg); background: var(--sunk); box-shadow: inset 0 -3px 0 var(--fg); }
+  .help-page:has(#for-nodrop:target) .dir-note[data-f="for-nodrop"] { display: block; }
+  .help-page:has(#for-nodrop:target) #by-product .dir-cur::before { content: ": NoDrop"; }
+  .help-page:has(#for-obs-blade:target) .dir-row:not([data-c~="obs-blade"]) { display: none; }
+  .help-page:has(#for-obs-blade:target) .dir-pick a[href="#for-obs-blade"] { border-color: var(--fg); background: var(--sunk); box-shadow: inset 0 -3px 0 var(--fg); }
+  .help-page:has(#for-obs-blade:target) .dir-note[data-f="for-obs-blade"] { display: block; }
+  .help-page:has(#for-obs-blade:target) #by-product .dir-cur::before { content: ": OBS Blade"; }
+  .help-page:has(#for-obs-studio:target) .dir-row:not([data-c~="obs-studio"]) { display: none; }
+  .help-page:has(#for-obs-studio:target) .dir-pick a[href="#for-obs-studio"] { border-color: var(--fg); background: var(--sunk); box-shadow: inset 0 -3px 0 var(--fg); }
+  .help-page:has(#for-obs-studio:target) .dir-note[data-f="for-obs-studio"] { display: block; }
+  .help-page:has(#for-obs-studio:target) #by-product .dir-cur::before { content: ": OBS Studio"; }
+  .help-page:has(#for-srtla:target) .dir-row:not([data-c~="srtla"]) { display: none; }
+  .help-page:has(#for-srtla:target) .dir-pick a[href="#for-srtla"] { border-color: var(--fg); background: var(--sunk); box-shadow: inset 0 -3px 0 var(--fg); }
+  .help-page:has(#for-srtla:target) .dir-note[data-f="for-srtla"] { display: block; }
+  .help-page:has(#for-srtla:target) #by-product .dir-cur::before { content: ": srtla"; }
+  .help-page:has(#for-streamer-bot:target) .dir-row:not([data-c~="streamer-bot"]) { display: none; }
+  .help-page:has(#for-streamer-bot:target) .dir-pick a[href="#for-streamer-bot"] { border-color: var(--fg); background: var(--sunk); box-shadow: inset 0 -3px 0 var(--fg); }
+  .help-page:has(#for-streamer-bot:target) .dir-note[data-f="for-streamer-bot"] { display: block; }
+  .help-page:has(#for-streamer-bot:target) #by-product .dir-cur::before { content: ": Streamer.bot"; }
+  .help-page:has(#for-syncer-live:target) .dir-row:not([data-c~="syncer-live"]) { display: none; }
+  .help-page:has(#for-syncer-live:target) .dir-pick a[href="#for-syncer-live"] { border-color: var(--fg); background: var(--sunk); box-shadow: inset 0 -3px 0 var(--fg); }
+  .help-page:has(#for-syncer-live:target) .dir-note[data-f="for-syncer-live"] { display: block; }
+  .help-page:has(#for-syncer-live:target) #by-product .dir-cur::before { content: ": Syncer.live"; }
+  .help-page:has(#kind-article:target) .dir-row:not([data-k="article"]) { display: none; }
+  .help-page:has(#kind-article:target) .dir-pick a[href="#kind-article"] { border-color: var(--fg); background: var(--sunk); box-shadow: inset 0 -3px 0 var(--fg); }
+  .help-page:has(#kind-article:target) .dir-note[data-f="kind-article"] { display: block; }
+  .help-page:has(#kind-article:target) #by-kind .dir-cur::before { content: ": Articles"; }
+  .help-page:has(#kind-video:target) .dir-row:not([data-k="video"]) { display: none; }
+  .help-page:has(#kind-video:target) .dir-pick a[href="#kind-video"] { border-color: var(--fg); background: var(--sunk); box-shadow: inset 0 -3px 0 var(--fg); }
+  .help-page:has(#kind-video:target) .dir-note[data-f="kind-video"] { display: block; }
+  .help-page:has(#kind-video:target) #by-kind .dir-cur::before { content: ": Videos"; }
+}

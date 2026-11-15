@@ -1,0 +1,221 @@
+<div class="wrap page">
+  <header class="page-head">
+    <svg class="head-ill" aria-hidden="true"><use href="#i-between"/></svg>
+    <h1>The initiative</h1>
+    <p class="lede">Shared standards and open data for IRL streaming, so the apps, backpacks and services streamers already use can work together.</p>
+    <p class="meta">One person runs it for now: Paul Golmann. <a href="contact.html">Contact</a> · <a href="contribute.html">Contribute</a></p>
+  </header>
+
+  <nav class="toc" aria-label="On this page">
+    <ul>
+      <li><a href="#hard">What's still hard</a></li>
+      <li><a href="#ideas">Three ideas</a></li>
+      <li><a href="#one-show">One show</a></li>
+      <li><a href="#chain">Why apps need to share status</a></li>
+      <li><a href="#screens">Prototype screens</a></li>
+      <li><a href="#status">Where it stands</a></li>
+      <li><a href="#thanks">Built on</a></li>
+    </ul>
+  </nav>
+
+  <div class="parts">
+        <section class="part" id="hard" aria-labelledby="hard-h">
+      <h2 id="hard-h">What's still hard</h2>
+      <p class="sum">The apps and devices work. Using them together is the hard part.</p>
+      <ul class="hard">
+        <li>
+          <h3>Moving between devices</h3>
+          <p>With open tools, moving a live stream from one device to another without it starting over still means connecting things by hand.</p>
+          <details class="more">
+            <summary>What already does part of this: OBS, TVU Go, cloud production, IRL+'s Video Mixer</summary>
+            <p>OBS can switch between a desk and a phone feed. TVU Go advertises moving from desktop to IRL. Cloud production can take several inputs on the bigger plans. IRL+'s Video Mixer (in closed beta) puts several cameras and a phone feed into one picture on a BELABOX box.</p>
+          </details>
+        </li>
+        <li><h3>Few maintainers</h3><p>Much of this depends on a few people, often working in their free time. You can sponsor them, write clear bug reports or send fixes.</p></li>
+        <li><h3>Anyone can reuse open source</h3><p>That is the idea of open source, and it is also a risk. Moblin uses the MIT licence: anyone may build its code into a closed, paid app. BELABOX's encoder and control screen use the GPL, and <code>srtla</code> uses the AGPL. Whoever ships a changed copy of those has to share its source with the people who get it. None of these licences makes anyone send their fixes back. The licence decides whether changed copies stay open.</p></li>
+        <li><h3>Everyone can build their own now</h3><p>With AI coding tools, which I use too, it keeps getting easier to build your own app, overlay or relay. That's good for trying ideas. But it also means more small tools that do nearly the same thing. Each has its own setup and its own words for what's happening.</p></li>
+        <li><h3>Passwords</h3><p>Some setups need several logins. A hotspot's admin page may still have its default password. Local pages may show "Not secure" warnings because of self-signed certificates. Streamers are busy, and passwords leak on stream.</p></li>
+        <li><h3>Online services get attacked</h3><p>Shared servers can fail. They also face attacks, floods of traffic and break-in attempts, more and more of them automated. When a shared service is down, everyone who uses it is affected.</p></li>
+        <li class="wide"><h3>Each project on its own</h3><p>Each project has its own community, with its own chat, docs and issue tracker. So advice on the same questions is spread across all of them: which modem, which SIM, why did my stream drop. Even names collide: the link list has two unrelated projects called OpenIRL. If the projects shared a few standards and what they learn, each could keep its own focus. Streamers could then mix and swap apps and devices without starting over.</p></li>
+      </ul>
+    </section>
+
+        <section class="part" id="ideas" aria-labelledby="ideas-h">
+      <h2 id="ideas-h">Three ideas</h2>
+      <ol class="ideas">
+        <li>
+          <h3>Start with the streamer's day</h3>
+          <p>Plan from what a streamer does during the day, not from the tech and its features. The stream should move with you between your devices without starting over, and without chat looking at a waiting screen. <a href="#one-show">One show</a> below shows how.</p>
+          <p>The tech shouldn't be the stressful part. While you're live, you get a clear message. You also get a fix that says what it costs you, like a few seconds of your "be right back" screen. The explanation can wait until after the stream.</p>
+        </li>
+        <li>
+          <h3>Make apps and devices work as one</h3>
+          <p>The projects under <a href="#thanks">Built on</a> already do the hard parts. I build on them instead of starting over: Moblin for the iPhone, CeraLive for a backpack, Moblink for spare phones. OpenStreamBox, the reference backpack build I'm working on, isn't ready yet. Fixes go back to those projects first.</p>
+          <p>Setup should be secure without passwords to remember. For example, you pair a phone with a tap and a matching code.</p>
+        </li>
+        <li>
+          <h3>Shared standards</h3>
+          <p>Open, written standards for how apps and devices work together. For example: how a phone and a backpack pair, what "live", "be right back" and "private" mean, and how a stream moves from one device to the next.</p>
+          <p>Any app, backpack or service can follow them. Then trying a new one is a small risk, and the people who make each part can build a business on it. The first drafts are on <a href="open-standards.html">Open standards</a>.</p>
+        </li>
+      </ol>
+    </section>
+
+        <section class="part" id="one-show" aria-labelledby="one-show-h">
+      <h2 id="one-show-h">One show on any device</h2>
+      <p class="sum">Start at your desk or on your phone. When the backpack has started, the stream moves onto it without dropping. Your phone stays in the show as a camera, an extra connection and your remote. When you are home again, your PC takes the stream back the same way.</p>
+      <figure class="one-show">
+        <svg class="one-show-svg" viewBox="0 0 640 300" role="img" aria-labelledby="one-show-t one-show-d">
+          <title id="one-show-t">One show, carried by three devices in turn</title>
+          <desc id="one-show-d">Time runs left to right. The top line is what viewers get: one unbroken stream. Below, the PC carries it first, then the phone, then the backpack, and at the end the PC again. Where two rows overlap, both devices send for a moment before the switch, marked 1, 2 and 3. After the second switch the phone keeps helping as a camera, a link and a remote.</desc>
+          <rect class="dg-band" x="226" y="22" width="28" height="234"/>
+          <rect class="dg-band" x="396" y="22" width="28" height="234"/>
+          <rect class="dg-band" x="556" y="22" width="28" height="234"/>
+          <text class="dg-label" x="0" y="47">Viewers</text>
+          <line class="dg-viewers" x1="122" y1="40" x2="628" y2="40"/>
+          <text class="dg-label" x="0" y="117">PC</text>
+          <line class="dg-pc" x1="124" y1="110" x2="250" y2="110"/>
+          <line class="dg-pc" x1="562" y1="110" x2="628" y2="110"/>
+          <text class="dg-label" x="0" y="177">Phone</text>
+          <line class="dg-phone" x1="232" y1="170" x2="420" y2="170"/>
+          <line class="dg-help" x1="420" y1="170" x2="628" y2="170"/>
+          <text class="dg-label" x="0" y="237">Backpack</text>
+          <line class="dg-pack" x1="402" y1="230" x2="580" y2="230"/>
+          <circle class="dg-step" cx="240" cy="280" r="14"/><text class="dg-num" x="240" y="286">1</text>
+          <circle class="dg-step" cx="410" cy="280" r="14"/><text class="dg-num" x="410" y="286">2</text>
+          <circle class="dg-step" cx="570" cy="280" r="14"/><text class="dg-num" x="570" y="286">3</text>
+        </svg>
+        <figcaption>
+          <ol class="handovers">
+            <li><span class="n">1</span> Desk to phone, for the walk out.</li>
+            <li><span class="n">2</span> Phone to backpack, once it has started. The phone keeps helping.</li>
+            <li><span class="n">3</span> Home again: back to the PC.</li>
+          </ol>
+          <p class="key"><span><span class="k k-pc" aria-hidden="true"></span>PC</span> <span><span class="k k-phone" aria-hidden="true"></span>Phone</span> <span><span class="k k-pack" aria-hidden="true"></span>Backpack</span></p>
+          <p>Viewers see one short transition at each switch.</p>
+          <p><span class="mark goal">Goal<span class="vh">: </span></span> Not built yet.</p>
+        </figcaption>
+      </figure>
+    </section>
+
+        <section class="part" id="chain" aria-labelledby="chain-h">
+      <h2 id="chain-h">Why apps need to share their status</h2>
+      <p class="sum">Each app and service reports only its own part. When a setup uses apps from different makers, none of them sees the whole chain.</p>
+
+      <h3 class="story-h">One setup today</h3>
+      <ol class="chain" aria-label="One stream today, and what each part can tell you">
+        <li><span class="node">Phone app<span class="vh">:</span></span><span class="says">"Live"<span class="vh">.</span></span><span class="knows">sending to your relay</span></li>
+        <li><span class="node">Relay<span class="vh">:</span></span><span class="says">receiving<span class="vh">.</span></span><span class="knows">nothing to pass it to yet</span></li>
+        <li><span class="node">Cloud OBS<span class="vh">:</span></span><span class="says">no answer yet<span class="vh">.</span></span><span class="knows">still starting</span></li>
+        <li><span class="node">Twitch<span class="vh">:</span></span><span class="says">offline<span class="vh">.</span></span><span class="knows">no stream coming in</span></li>
+      </ol>
+      <div class="read">
+        <p>In this example, Moblin sends your picture to a relay. A relay is a service that receives your stream and passes it on. Then OBS on a cloud computer turns it into the show for Twitch and YouTube. You start the stream in Moblin, and it shows you're live. That's true: your phone is streaming to your relay. But the cloud OBS hasn't finished starting, so nothing reaches Twitch yet. Or OBS is running and taking your feed, but it still shows your starting scene. Or Twitch is fine, but the second feed to YouTube has stopped and you didn't notice.</p>
+        <p>Each app is right about its own part. Moblin can also connect to OBS's remote control and show OBS's scene and whether OBS is streaming. But it can't see every place OBS sends to, or a relay it doesn't run. So to find out what viewers actually get, the streamer may have to check several places. To do that, they have to understand the whole setup.</p>
+      </div>
+
+      <div class="concept-example">
+      <h3 class="story-h">A full picture in one place</h3>
+      <p class="read">If each app reported what it's doing in the same words, your phone could collect those reports. It could then show you the real status, including where the stream stops.</p>
+      <div class="screens concept">
+        <figure>
+          <div class="phone" role="img" aria-label="Concept phone screen: Sending to your relay. Starting: cloud OBS is still starting, nothing reaches Twitch yet. Your phone keeps sending to your relay.">
+            <div class="carrier">Sending to your relay</div>
+            <div class="verdict starting">STARTING</div>
+            <p class="true">Cloud OBS is still starting. Nothing reaches Twitch yet.</p>
+            <p class="done">Your phone keeps sending to your relay.</p>
+          </div>
+          <figcaption>Before the show reaches Twitch.</figcaption>
+        </figure>
+        <figure>
+          <div class="phone" role="img" aria-label="Concept phone screen: Live on Twitch. One feed down: YouTube's feed stopped, Twitch is still receiving. Retrying the YouTube feed.">
+            <div class="carrier"><span class="livedot">LIVE</span> on Twitch</div>
+            <div class="verdict caution">ONE FEED DOWN</div>
+            <p class="true">YouTube's feed stopped. Twitch is still receiving.</p>
+            <p class="done">Retrying the YouTube feed.</p>
+          </div>
+          <figcaption>When only one destination is receiving.</figcaption>
+        </figure>
+      </div>
+      <p class="meta">These are concept screens. Nothing here is built yet.</p>
+      </div>
+
+      <h3 class="story-h">Why it matters</h3>
+      <p class="read">I think this is why many people buy a ready-made kit from one company. That company makes every part, so one screen can show you how it's going. Separate tools might each do their own job better. If open apps and devices used the same words for what's happening, they could have that one screen too.</p>
+    </section>
+
+        <section class="part" id="screens" aria-labelledby="screens-h">
+      <h2 id="screens-h">Prototype screens</h2>
+      <p class="sum">In both, the stream is still live on the platform.</p>
+      <div class="screens">
+        <figure>
+          <div class="phone" role="img" aria-label="Prototype phone screen in a tunnel. Live on the backpack. Struggling: every link dropped, viewers may see a frozen picture. Done for you: switched to the low-bitrate scene. Button: Show BRB, viewers see your BRB screen until the signal is back.">
+            <div class="carrier"><span class="livedot">LIVE</span> on the backpack</div>
+            <div class="verdict caution">STRUGGLING</div>
+            <p class="true">Every link dropped. Viewers may see a frozen picture.</p>
+            <p class="done">Done for you: switched to the low-bitrate scene.</p>
+            <div class="spacer"></div>
+            <div class="pbtn">Show BRB<small>Viewers see your BRB screen until the signal is back.</small></div>
+          </div>
+          <figcaption>In a tunnel, the phone says what viewers get, what was already done, and one fix with its cost.</figcaption>
+        </figure>
+        <figure>
+          <div class="phone" role="img" aria-label="Prototype phone screen with the privacy screen on. Live on the backpack. Private: viewers don't see you, they see a blurred picture, sound on. The stream stays live. Button: Show the picture, viewers see you again 3 seconds after you tap.">
+            <div class="carrier"><span class="livedot">LIVE</span> on the backpack</div>
+            <div class="verdict private">PRIVATE</div>
+            <p class="true">Viewers don't see you. They see a blurred picture. Sound on.</p>
+            <p class="done">The stream stays live. The picture comes back when you choose.</p>
+            <div class="spacer"></div>
+            <div class="pbtn">Show the picture<small>Viewers see you again 3 seconds after you tap.</small></div>
+          </div>
+          <figcaption>With the privacy screen on, it says what viewers see instead of you.</figcaption>
+        </figure>
+      </div>
+      <p class="meta">The wording and layout may still change.</p>
+    </section>
+
+        <section class="part" id="status" aria-labelledby="status-h">
+      <h2 id="status-h">Where it stands</h2>
+      <ul class="key" aria-label="What the marks mean">
+        <li><span class="mark works">Works today<span class="vh">: </span></span><span>running, and you can use it</span></li>
+        <li><span class="mark proto">Prototype<span class="vh">: </span></span><span>runs in a simulation or on my test setup; not ready to use</span></li>
+        <li><span class="mark goal">Goal<span class="vh">: </span></span><span>not built yet, or not tested yet</span></li>
+      </ul>
+      <div class="status">
+        <h3>The streamer's day</h3>
+        <ul>
+          <li><span class="mark goal">Goal<span class="vh">: </span></span><span class="what">Move one stream between your desk, phone and backpack without it starting over.</span><span class="why">Not built yet.</span></li>
+          <li><span class="mark proto">Prototype<span class="vh">: </span></span><span class="what">Desk and phone screens that show the real status, and what a fix costs.</span><span class="why">Clickable, with a simulated backpack. Not tried by streamers yet.</span></li>
+          <li><span class="mark proto">Prototype<span class="vh">: </span></span><span class="what">Pairing a phone with a backpack by QR code and a matching code, with no password to write down.</span><span class="why">An iPhone test build, built on Moblin, against a simulated backpack.</span></li>
+          <li><span class="mark proto">Prototype<span class="vh">: </span></span><span class="what">A short demo in your browser: four stories, from a streamer's seat and a moderator's seat, on a simulated backpack.</span><span class="why">Runs on my computer. Not public yet.</span></li>
+        </ul>
+        <h3>Apps and devices that work as one</h3>
+        <ul>
+          <li><span class="mark works">Works today<span class="vh">: </span></span><span class="what">The apps, backpacks and services in the link list stream IRL today.</span><span class="why">Their makers built them.</span></li>
+          <li><span class="mark proto">Prototype<span class="vh">: </span></span><span class="what">A backpack that brings a dropped mobile connection back by itself.</span><span class="why">An early version on my test setup. Not released yet.</span></li>
+          <li><span class="mark goal">Goal<span class="vh">: </span></span><span class="what">OpenStreamBox, the reference backpack build: an open backpack you can build from published parts lists, including a board for its power.</span><span class="why">I'm still designing it. The first boards haven't been tested.</span></li>
+          <li><span class="mark goal">Goal<span class="vh">: </span></span><span class="what">A smaller box without a camera input, that lends your phone more networks and more battery.</span><span class="why">Screen designs and early software. No box has been built yet.</span></li>
+        </ul>
+        <h3>Shared standards</h3>
+        <ul>
+          <li><span class="mark works">Works today<span class="vh">: </span></span><span class="what"><a href="https://github.com/irl-commons/irl-commons">irl-commons</a>: open data for IRL streaming that anyone can reuse with credit and help improve.</span><span class="why">The glossary, links and guides on this site come from here.</span></li>
+          <li><span class="mark goal">Goal<span class="vh">: </span></span><span class="what">The same words for what's happening (live, be right back, private), and for how far along the chain your stream got, in every app and backpack.</span><span class="why">Not published yet.</span></li>
+          <li><span class="mark goal">Goal<span class="vh">: </span></span><span class="what">Open standards for pairing, status and moving a stream, so you can swap one app or service and keep the rest.</span><span class="why">First drafts of a status format and a session format are published. No app uses them yet. <a href="open-standards.html">See the drafts</a>.</span></li>
+          <li><span class="mark goal">Goal<span class="vh">: </span></span><span class="what">A neutral list of services, with a few questions that point you to one or two that fit.</span><span class="why">The <a href="https://howtoirl.org/links.html">link list</a> on this site is the start.</span></li>
+        </ul>
+      </div>
+    </section>
+
+        <section class="part" id="thanks" aria-labelledby="thanks-h">
+      <h2 id="thanks-h">Built on</h2>
+      <p class="sum">IRL streaming already works, because of projects and services I really like. These are the open ones I build on.</p>
+      <ul class="ruled">
+        <li><h3>Moblin</h3><p>A free, open-source iPhone app for IRL streaming, with bonding built in. One developer has done a huge amount of the work.</p></li>
+        <li><h3>Moblink</h3><p>From the same developer. It turns spare Android phones into extra connections for a bonded stream. iPhones running Moblin can do the same.</p></li>
+        <li><h3>BELABOX</h3><p>The project that made open bonding backpacks real. It is an encoder on a small board with modems. It also made <code>srtla</code>, the open protocol that sends one stream over several connections. Many IRL streamers use it today.</p></li>
+        <li><h3>CeraLive</h3><p>"A live-streaming system you build yourself", built on open source, for IRL streamers, event and sports producers and community broadcasters.</p></li>
+      </ul>
+      <p class="many"><strong>…and many more</strong>, open and commercial: <!--services:names:obs-studio,noalbs-tool,lifestreamer,openirl-srtla-receiver,irlbox,irlplus-cast,larix-broadcaster,tvu-go,irlhosting,liveu-solo,unlimitedirl,yolobox-ultra,teradek-prism-mobile,haivision-pro,dejero-engo,speedify,streamer-bot,mediamtx,realtimeirl,bond-bunny,irlwhatever,doink-tv--> and others. <a href="https://howtoirl.org/links.html">All of them, with what each does and its licence, are in the link list <span class="arrow" aria-hidden="true">→</span></a></p>
+    </section>
+  </div>
+</div>

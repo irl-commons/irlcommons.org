@@ -1,0 +1,18 @@
+{
+  "domain": "irlcommons.org",
+  "name": "IRL Commons",
+  "pages": [
+    "index.html",
+    "initiative.html",
+    "standards.html",
+    "open-standards.html",
+    "data.html",
+    "contribute.html",
+    "contact.html",
+    "legal-notice.html",
+    "impressum.html",
+    "privacy.html",
+    "datenschutz.html"
+  ],
+  "dataCommit": "52ba40f6228b47114cead2e7dcaa40d76a1f59eb"
+}

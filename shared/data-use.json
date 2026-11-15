@@ -1,0 +1,74 @@
+{
+  "units": {
+    "gb_bytes": 1000000000,
+    "mb_bytes": 1000000
+  },
+  "defaults": {
+    "hours": 3,
+    "video_mbps": 6,
+    "audio_kbps": 128,
+    "mode": "bonded",
+    "links": 2,
+    "loss_pct": 2,
+    "record": false,
+    "record_note": "the recording uses the stream's video bitrate unless one is entered"
+  },
+  "limits": {
+    "hours_max": 48,
+    "video_mbps_max": 100,
+    "audio_kbps_max": 512,
+    "links_min": 2,
+    "links_max": 6,
+    "loss_pct_max": 20
+  },
+  "ts": {
+    "packet_bytes": 188,
+    "header_bytes": 4,
+    "fixed_kbps": 64,
+    "why": "MPEG-TS: 4 header bytes in every 188-byte packet (arithmetic), plus about 64 kbit/s of tables, timing and padding (fitted to ffmpeg's muxer at 3, 6 and 15 Mbit/s)"
+  },
+  "packet": {
+    "payload_bytes": 1316,
+    "srt_header_bytes": 16,
+    "udp_header_bytes": 8,
+    "ip_header_bytes": 20,
+    "why": "SRT live payload 1316 bytes (7 TS packets); SRT 16, UDP 8, IPv4 20 header bytes (IPv6: 40)"
+  },
+  "resend": {
+    "factor": 1.05,
+    "bonded_reorder": 0.009,
+    "why": "SRT resends each lost packet: p / (1 - p) of the data, measured about 5 % above that; bonding adds about 0.9 % of resends for packets that arrive out of order (measured with links of equal delay)"
+  },
+  "control": {
+    "up_kbps_per_link": 14,
+    "ack_down_kbps_per_link": 14,
+    "nak_down_share_per_loss": 0.06,
+    "why": "SRT acknowledgements come back about 24 times a second (about 14 kbit/s) and the sender answers each (about 14 kbit/s up); loss reports grow with loss. With SRTLA every link gets every acknowledgement."
+  },
+  "srtla": {
+    "ack_bytes": 72,
+    "ack_every_packets": 10,
+    "keepalive_kbps": 0.304,
+    "why": "The SRTLA receiver confirms every 10 packets on a link with a 44-byte packet (72 bytes with UDP and IP); a 10-byte keepalive once a second per link, echoed back"
+  },
+  "mp4": {
+    "fixed_kbps": 7,
+    "why": "An MP4 recording is the audio and video plus about 7 kbit/s of index (measured with ffmpeg at 3, 6 and 15 Mbit/s)"
+  },
+  "table": {
+    "video_mbps": [
+      3,
+      6,
+      10,
+      15
+    ],
+    "hours": [
+      1,
+      3,
+      8
+    ],
+    "audio_kbps": 128,
+    "links": 2,
+    "loss_pct": 2
+  }
+}

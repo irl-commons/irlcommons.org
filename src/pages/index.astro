@@ -1,0 +1,7 @@
+---
+import Layout from '../layouts/Layout.astro';
+import shells from '../shells.json';
+import rendered from '../../.generated/content.json';
+const shell = shells.find(s => s.name === 'index.html');
+---
+<Layout shell={shell}><Fragment set:html={rendered['index.html']} /></Layout>

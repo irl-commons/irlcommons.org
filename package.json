@@ -1,0 +1,18 @@
+{
+  "name": "irlcommons.org",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "python3 scripts/prepare.py && astro build",
+    "test": "node --test scripts/check.test.mjs",
+    "check": "npm run build && npm test"
+  },
+  "dependencies": {
+    "@irl-commons/data": "https://codeload.github.com/irl-commons/irl-commons/tar.gz/52ba40f6228b47114cead2e7dcaa40d76a1f59eb",
+    "astro": "7.4.12"
+  },
+  "devDependencies": {
+    "html-validate": "11.21.1"
+  }
+}

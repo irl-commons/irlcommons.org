@@ -1,0 +1,105 @@
+<div class="wrap page open-page">
+  <header class="page-head">
+    <svg class="head-ill" aria-hidden="true"><use href="#i-between"/></svg>
+    <h1>Open standards</h1>
+  </header>
+
+  <nav class="toc" aria-label="On this page">
+    <ul>
+      <li><a href="#why">Why shared formats</a></li>
+      <li><a href="#drafts">The four drafts</a></li>
+      <li><a href="#comments">Comments wanted</a></li>
+      <li><a href="#credits">Built on earlier work</a></li>
+    </ul>
+  </nav>
+
+  <div class="parts">
+    <section class="part" id="why" aria-labelledby="why-h">
+      <h2 id="why-h">Why shared formats matter</h2>
+      <div class="read">
+        <p>An IRL stream passes through many parts: the camera, a phone app or a backpack, several mobile connections, a relay, OBS and the platform. Different makers build each part. Each part knows something about the stream, and each one says it in its own way, if at all.</p>
+        <p>When something goes wrong, the streamer or a mod has to work out which part of the chain has the problem and how to fix it:</p>
+      </div>
+      <ul class="bul read">
+        <li>The phone app says "Live", but nothing reaches Twitch, because the cloud OBS is still starting. <a href="initiative.html#chain">The example on the Initiative page</a>.</li>
+        <li>In a collab, streamers put their stream key into another streamer's server and trust that nobody goes live on their channel by accident after the collab.</li>
+      </ul>
+      <div class="read">
+        <p>IRL Commons wants shared formats so apps and services can work together, and so the whole setup is easier to understand and control for streamers and the people who help them.</p>
+      </div>
+    </section>
+
+    <section class="part" id="drafts" aria-labelledby="drafts-h">
+      <h2 id="drafts-h">The four drafts</h2>
+
+      <dl class="ruled os-list">
+        <div id="irl-commons">
+          <dt>irl-commons</dt>
+          <dd class="os-q">Shared facts</dd>
+          <dd>Words, quick checks, a list of apps and services, guides and standards, written in plain language. Anyone can reuse them with credit. The glossary, links and guides on this site come from here.</dd>
+          <dd class="os-state">Published, v0 · <a href="https://github.com/irl-commons/irl-commons">github.com/irl-commons</a></dd>
+        </div>
+        <div id="stream-status">
+          <dt>stream-status</dt>
+          <dd class="os-q">What's wrong, and are you still live?</dd>
+          <dd>Each part reports its problems in the same short shape: what is wrong, where, how much it matters to viewers, and whether the stream still reaches the receiver. A part that can't see something says "unknown", never "fine".</dd>
+          <dd class="os-state">Published draft, v0 · No app uses it yet · <a href="https://github.com/irl-commons/stream-status">github.com/irl-commons/stream-status</a></dd>
+        </div>
+        <div id="stream-session">
+          <dt>stream-session</dt>
+          <dd class="os-q">Which show, who's in it, who decides?</dd>
+          <dd>The devices in one show agree on which device is in charge. So a stream can move from your PC to your phone to your backpack, and a friend or a guest can join. Each person chooses what the others see. Anyone allowed can hide the picture at once.</dd>
+          <dd class="os-state">Published draft, v0 · No app uses it yet · <a href="https://github.com/irl-commons/stream-session">github.com/irl-commons/stream-session</a></dd>
+        </div>
+        <div id="stream-components">
+          <dt>stream-components</dt>
+          <dd class="os-q">Who's around, who trusts whom, what goes where?</dd>
+          <dd>How your phone, backpack, OBS and other apps would find each other, pair once with a QR code, and show where each picture and sound goes. It is meant to work on one Wi-Fi or hotspot, and across the internet through an optional server.</dd>
+          <dd class="os-state">Designed, not published yet</dd>
+        </div>
+      </dl>
+      <p class="meta read">They don't replace anyone's app, statistics or API. They sit next to them. Everything is under open licences: MIT for the formats and their tools, CC BY 4.0 for the data.</p>
+    </section>
+
+    <section class="part" id="comments" aria-labelledby="comments-h">
+      <h2 id="comments-h">Comments wanted</h2>
+      <p class="sum">These are drafts, so now is the easiest time to change them. Comments from makers and integrators help most.</p>
+      <div class="read">
+        <p>Do you make a streaming app, an encoder box, a relay or receiver, a hub, a scene switcher, a remote app or a help page? Then one question matters most: what would stop you from using one of these?</p>
+      </div>
+      <ul class="bul read">
+        <li>Something your product needs to say that a draft can't say.</li>
+        <li>A rule that doesn't fit how your product works.</li>
+        <li>Too much work for what you would get back.</li>
+      </ul>
+      <div class="read">
+        <p>Short answers help. One line on why you wouldn't use it is as useful as a long review. Doubts about the whole idea are welcome too.</p>
+      </div>
+      <h3 class="story-h">Where to write</h3>
+      <ul class="bul read">
+        <li><strong>On GitHub:</strong> each repository has a "Feedback from makers and integrators" discussion: <a href="https://github.com/irl-commons/irl-commons/discussions/8">irl-commons</a>, <a href="https://github.com/irl-commons/stream-status/discussions/2">stream-status</a>, <a href="https://github.com/irl-commons/stream-session/discussions/2">stream-session</a>.</li>
+        <li><strong>By email:</strong> <a href="mailto:hello@irlcommons.org">hello@irlcommons.org</a>, if you'd rather not post in public.</li>
+        <li><strong>On Discord:</strong> <a href="https://discord.gg/3B9b9n9N6">the project's Discord server</a>.</li>
+      </ul>
+      <h3 class="story-h">Try one first</h3>
+      <ul class="bul read">
+        <li><a href="https://github.com/irl-commons/irl-commons/blob/main/docs/getting-started.md">Use the irl-commons data</a> in your app or site.</li>
+        <li><a href="https://github.com/irl-commons/stream-status/blob/main/docs/getting-started.md">Send your first stream-status snapshot</a>.</li>
+        <li><a href="https://github.com/irl-commons/stream-session/blob/main/docs/getting-started.md">Join a stream-session show</a>.</li>
+      </ul>
+      <p class="meta read">Each guide takes about ten minutes, and each repository has worked examples and an FAQ.</p>
+    </section>
+
+    <section class="part" id="credits" aria-labelledby="credits-h">
+      <h2 id="credits-h">Built on earlier work</h2>
+      <p class="sum">The drafts borrow on purpose, and their specs name where each idea comes from.</p>
+      <dl class="ruled credits">
+        <div><dt><a href="https://github.com/NOALBS/nginx-obs-automatic-low-bitrate-switching">NOALBS</a></dt><dd>The open-source scene switcher many IRL streamers run. It reads the stats of the common receivers, and it is the closest thing to a shared status format in IRL streaming today. stream-status and stream-session are meant to sit next to it.</dd></div>
+        <div><dt>IRLToolkit</dt><dd>Its ingest sharing for cloud OBS, where both sides agree and access runs out by itself by default, shaped how stream-session lets guests in.</dd></div>
+        <div><dt>OBS Studio</dt><dd>Its broadcast performance metrics, carried inside the video, are the model for stream-status's in-band form.</dd></div>
+        <div><dt>Broadcast and monitoring</dt><dd>AMWA NMOS, Prometheus Alertmanager, the IETF alarm model, Kubernetes conditions, Nagios, OpenTelemetry and CloudEvents.</dd></div>
+        <div><dt>Coordination and sharing</dt><dd>Raft, Chubby, etcd and NATS leases, fencing tokens, DNS-SD, OAuth scopes, Biscuit and macaroons, LiveKit, Matrix and W3C Trace Context.</dd></div>
+      </dl>
+    </section>
+  </div>
+</div>

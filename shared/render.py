@@ -1,0 +1,986 @@
+from __future__ import annotations
+import datetime, html, json, re
+from html.parser import HTMLParser
+from pathlib import Path
+import datause
+NEXT = True
+NAV = [('map', 'ecosystem.html', 'Overview'), ('fits', 'how-to-irl.html', 'How to IRL'), ('links', 'links.html', 'Links'), ('standards', 'standards.html', 'Standards'), ('help', 'help.html', 'Help'), ('working', 'roadmap.html', 'Roadmap'), ('about', 'about.html', 'About'), ('contribute', 'contribute.html', 'Contribute')]
+
+FOOT_GROUPS = [('Start', [('home', 'index.html', 'Home'), ('map', 'ecosystem.html', 'Overview'), ('fits', 'how-to-irl.html', 'How to IRL')]), ('Guides', [('plans', 'data-plans.html', 'Data plans and SIMs'), ('why', 'why-bonding.html', 'Why more than one network?'), ('help', 'help.html', 'Help'), ('checks', 'checks.html', 'Quick checks'), ('glossary', 'glossary.html', 'Glossary')]), ('Data and standards', [('links', 'links.html', 'Links'), ('standards', 'standards.html', 'Standards'), ('open', 'open-standards.html', 'Open standards'), ('contribute', 'contribute.html', 'Contribute')]), ('About and legal', [('about', 'about.html', 'About'), ('working', 'roadmap.html', 'Roadmap')])]
+
+FOOT_PAGES = [x for _, items in FOOT_GROUPS for x in items]
+
+COMMONS = {'repo': 'https://github.com/irl-commons/irl-commons', 'suggest': 'https://github.com/irl-commons/irl-commons/issues', 'licence': 'https://creativecommons.org/licenses/by/4.0/'}
+
+def commons_line() -> str:
+    return f'''<p class="commons-line">From <a href="{COMMONS['repo']}">irl-commons</a> · <a href="{COMMONS['licence']}">CC BY 4.0</a> · <a href="{COMMONS['suggest']}">Suggest a change</a></p>'''
+
+def commons_teaser() -> str:
+    return f'''<p class="commons-teaser" id="listed">Missing an app, a service or a guide? The lists on this site are open data in irl-commons. <a href="{COMMONS['suggest']}">Suggest it there</a>, or see <a href="data.html#commons">Data and standards</a>.</p>'''
+
+LEGAL = [('legal-notice.html', 'Legal notice', 'en'), ('impressum.html', 'Impressum', 'de'), ('privacy.html', 'Privacy policy', 'en'), ('datenschutz.html', 'Datenschutz', 'de')]
+
+STABLE_ANCHORS = {'index.html': ['commons', 'standing'], 'how-to-irl.html': ['start', 'more', 'one-phone', 'second-network', 'build', 'ready-made', 'cloud', 'hybrid', 'receiver', 'into-obs', 'satellite', 'sims', 'combine', 'all'], 'help.html': ['my-stack', 'start-here', 'guides', 'where-to-ask'], 'glossary.html': ['all-words'], 'roadmap.html': ['ideas', 'one-show', 'chain', 'screens', 'status'], 'standards.html': ['shared', 'app-formats', 'hardware-codecs', 'mine', 'compare-codecs', 'compare-transports'], 'open-standards.html': ['why', 'fit', 'around', 'comments', 'credits'], 'contribute.html': ['contact', 'commons', 'streamers', 'mods', 'helpers', 'production', 'makers', 'developers', 'listed'], 'data-plans.html': ['upload', 'data', 'small-print', 'use-rules', 'fact-sheet', 'maps', 'spot-check', 'abroad', 'calculator', 'overhead', 'units', 'eu-roaming', 'maker-data'], 'why-bonding.html': ['one-modem', 'best-case', 'shared-cell', 'moving', 'handover', 'priority', 'upload', 'how-it-helps', 'diversity', 'pieces', 'how-srtla-splits', 'add-up', 'freeze', 'limits', 'same-network', 'more-data', 'not-camera', 'heat-power', 'next-steps']}
+
+UNLISTED_PAGES: set[str] = {'help-ideas.html'}
+
+MOVED_PAGES = {'words.html': 'glossary.html', 'working-on.html': 'roadmap.html'}
+
+APEX = False
+
+APEX_KEEP_NOINDEX = UNLISTED_PAGES | set(MOVED_PAGES)
+
+NEXT = False
+
+LIVE_MOVED = dict(MOVED_PAGES)
+
+SITE: str | None = None
+
+def moved_nginx_problems() -> list[str]:
+    conf = PREVIEW_NGINX.read_text(encoding='utf-8')
+    problems = []
+    for old, new in LIVE_MOVED.items():
+        if not re.search(f'^\\s*/{re.escape(old)} /{re.escape(new)};$', conf, re.M):
+            problems.append(f"preview-host/nginx.conf: no map line '/{old} /{new};' for a moved page")
+        block = re.search(f'location = /{re.escape(old)} \\{{(.*?)(?=\\n\\s*(?:location|# moved pages: end))', conf, re.S)
+        if not block or 'auth_basic_user_file' not in block.group(1) or '@moved' not in block.group(1):
+            problems.append(f"preview-host/nginx.conf: no login-protected 'location = /{old}' sending to @moved")
+    for old in re.findall('^\\s*/([\\w.-]+\\.html) /[\\w.-]+\\.html;$', conf, re.M):
+        if old not in LIVE_MOVED:
+            problems.append(f'preview-host/nginx.conf: map redirects /{old}, which is not in MOVED_PAGES')
+    return problems
+
+SOURCED_SECTIONS = {'data-plans.html': ['upload', 'data', 'small-print', 'use-rules', 'fact-sheet', 'maps', 'spot-check', 'abroad', 'eu-roaming', 'maker-data'], 'why-bonding.html': ['one-modem', 'how-it-helps', 'limits']}
+
+NO_CARRIERS = {'data-plans.html', 'why-bonding.html'}
+
+CARRIER = re.compile('\\b(?:Telekom|Vodafone|o2|O2|Telef[oó]nica|1&1|congstar|fraenk|ALDI|spusu|freenet|T-Mobile|AT&T|Verizon|Visible|Google Fi|US Mobile|Mint|Airalo|Holafly|Yesim|Kolet|Nomad|Ubigi|Saily|Sprint)\\b')
+
+NO_PRICES = {'data-plans.html', 'why-bonding.html'}
+
+PRICE = re.compile('[$€£]\\s?\\d|\\d\\s?(?:€|£|EUR\\b|USD\\b)|\\bper month\\b|/mo\\b', re.I)
+
+WORD_LINKS = {'data-cap': ('How much data a stream uses', 'data-plans.html#data'), 'upload-speed': ('Why upload matters most', 'data-plans.html#upload'), 'bonding': ('Why more than one network?', 'why-bonding.html'), 'srtla': ('How bonding splits a stream', 'why-bonding.html#pieces')}
+
+WORD_TEXT = {'en': {'also': 'Also called', 'when': 'When it comes up', 'related': 'Related', 'all': 'All words', 'page': 'glossary.html'}}
+
+def loc(w: dict, lang: str, key: str) -> str:
+    if lang == 'en':
+        return w.get(key, '')
+    return w.get('l10n', {}).get(lang, {}).get(key, '')
+
+def words_entries(words: list[dict], lang: str) -> str:
+    t = WORD_TEXT[lang]
+    names = {w['id']: loc(w, lang, 'term') for w in words}
+    out = []
+    for w in sorted(words, key=lambda w: names[w['id']].lower()):
+        term = names[w['id']]
+        plain = loc(w, lang, 'plain')
+        when = loc(w, lang, 'heard_when')
+        rows = [f'<dd class="plain">{html.escape(plain, quote=False)}</dd>']
+        if w.get('aliases'):
+            rows.append(f"""<dd class="aka"><strong>{t['also']}:</strong> {html.escape(', '.join(w['aliases']), quote=False)}</dd>""")
+        if when:
+            rows.append(f"""<dd class="when"><strong>{t['when']}:</strong> {html.escape(when, quote=False)}</dd>""")
+        if w.get('related'):
+            rel = ', '.join((f'<a href="#{r}">{html.escape(names[r], quote=False)}</a>' for r in w['related']))
+            rows.append(f"""<dd class="rel"><strong>{t['related']}:</strong> {rel}</dd>""")
+        gs = guides_for('words', w['id'])
+        if gs:
+            rows.append(f'<dd class="rel guides"><strong>Guides:</strong> ' + '; '.join((guide_link(g) for g in gs)) + '</dd>')
+        if w['id'] in WORD_LINKS:
+            label, href = WORD_LINKS[w['id']]
+            rows.append(f'<dd class="rel"><strong>Read more:</strong> <a href="{href}">{label}</a></dd>')
+        hay = ' '.join([term, *w.get('aliases', []), plain]).lower()
+        out.append(f'''        <div class="entry" id="{w['id']}" data-search="{html.escape(hay)}">\n          <dt>{html.escape(term, quote=False)}</dt>\n          ''' + '\n          '.join(rows) + '\n        </div>')
+    return '\n'.join(out)
+
+def words_toc(words: list[dict], lang: str) -> str:
+    names = {w['id']: loc(w, lang, 'term') for w in words}
+    items = [f'<li data-for="{i}"><a href="#{i}">{html.escape(n, quote=False)}</a></li>' for i, n in sorted(names.items(), key=lambda kv: kv[1].lower())]
+    return '\n      '.join(items)
+
+def words_core(words: list[dict]) -> str:
+    rows = []
+    for w in words:
+        if w['tier'] != 'core':
+            continue
+        rows.append(f"""        <div><dt><a href="glossary.html#{w['id']}">{html.escape(w['term'], quote=False)}</a></dt><dd>{html.escape(w['plain'], quote=False)}</dd></div>""")
+    return '      <dl class="words">\n' + '\n'.join(rows) + '\n      </dl>\n      <p class="more-words"><a href="glossary.html">All words in the glossary <span class="arrow" aria-hidden="true">→</span></a></p>'
+
+ANSWER_LINKS = {'feed-into-obs': ('Into OBS, step by step', 'how-to-irl.html#into-obs'), 'second-link-idle': ('Adding a second network', 'how-to-irl.html#second-network'), 'live-not-on-platform': ('Into OBS, step by step', 'how-to-irl.html#into-obs'), 'switcher-no-stats': ('Into OBS, step by step', 'how-to-irl.html#into-obs')}
+
+DERIVED_CELLS = re.compile('^(The baseline: .+ compares? with it\\.|No published comparison listed\\.|Not listed for audio\\.)$')
+
+def compare_problems(text: str) -> list[str]:
+    out = []
+    for anchor, prefix in (('compare-codecs', 'cc'), ('compare-transports', 'ct')):
+        m = re.search(f'<section class="part cmp" id="{anchor}".*?</section>', text, re.S)
+        if not m:
+            out.append(f'standards.html: comparison table #{anchor} is missing')
+            continue
+        sec = m.group(0)
+        notes = set(re.findall(f'<li id="({prefix}-\\d+)">', sec))
+        for i, cell in enumerate(re.findall('<td>(.*?)</td>', sec, re.S)):
+            refs = re.findall(f'href="#({prefix}-\\d+)"', cell)
+            if not refs and (not DERIVED_CELLS.match(re.sub('<[^>]+>', '', cell).strip())):
+                out.append(f'standards.html: #{anchor} cell {i + 1} has no source note')
+            out += [f'standards.html: #{anchor} cell {i + 1} points at a missing note #{r}' for r in refs if r not in notes]
+        for li in re.findall('<li id="[a-z]+-\\d+">(.*?)</li>', sec, re.S):
+            if 'class="tip-src">Sources: <a href="https://' not in li or 'Checked ' not in li:
+                out.append(f'standards.html: #{anchor}: a source note lacks a link or a checked date')
+        if 'class="cmp-scroll"' not in sec:
+            out.append(f'standards.html: #{anchor} must scroll inside its own box on phones')
+    return out
+
+def fold(summary: str, inner: str, cls: str='', fid: str='') -> str:
+    c = f'more fold {cls}'.strip()
+    i = f' id="{fid}"' if fid else ''
+    return f'<details class="{c}"{i} open><summary>{summary}</summary>{inner}</details>'
+
+def sources_fold(links: str, cls: str='') -> str:
+    return fold('Sources', f'<p class="tip-src">{links}</p>', f'sources {cls}'.strip())
+
+STANDARD_GROUPS = [('shared', 'shared', 'Shared across apps', 'Apps and services from different makers understand these.'), ('app-formats', 'app-formats', 'App formats', "One app's own format that a second app also reads or writes. Both are named."), ('hardware-codecs', 'hardware-codecs', 'Hardware and codecs', "How the picture and sound get compressed, and the cables a camera's picture comes in on."), ('steward-projects', 'mine', 'From the OpenStreamBox Initiative', 'Drafts the OpenStreamBox Initiative started. They are listed apart, so nobody takes them for standards already in use. <a href="open-standards.html">How they fit together</a>.')]
+
+STANDARD_KIND = {'protocol': 'Protocol', 'format': 'Format', 'settings': 'Setup link or file', 'data': 'Data', 'codec': 'Codec', 'interface': 'Hardware interface'}
+
+STANDARD_STATUS = {'in-use': 'In use', 'proposed': 'Proposed', 'idea': 'Idea'}
+
+STANDARD_OPEN = {'open': 'Open', 'documented-closed': 'Closed, documented', 'undocumented': 'No written spec', 'not-public': 'Not public yet'}
+
+MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+
+STANDARD_IDS: list[str] = []
+
+STANDARDS_SOURCED: list[str] = []
+
+def long_date(day: str) -> str:
+    y, m, d = (int(x) for x in day.split('-'))
+    return f'{d} {MONTHS[m - 1]} {y}'
+
+def short_url(url: str) -> str:
+    host, _, path = re.sub('^https://(www\\.)?', '', url).split('#')[0].split('?')[0].partition('/')
+    parts = [p for p in path.split('/') if p]
+    return '/'.join([host, *parts[:2]]) + ('/…' if len(parts) > 2 else '')
+
+def standard_users(x: dict, by_id: dict[str, dict], on_links: set[str]) -> tuple[list[str], str]:
+    own = x['name'].split(' (')[0].lower()
+    users, itself = ([], '')
+    for r in x['service_ids']:
+        name = html.escape(by_id[r]['name'], quote=False)
+        link = f'<a href="links.html#{r}">{name}</a>' if r in on_links else name
+        if by_id[r]['name'].lower() == own:
+            itself = link
+        else:
+            users.append(link)
+    return (users + [html.escape(n, quote=False) for n in x['other_users']], itself)
+
+def standard_plain(x: dict, words: dict[str, dict]) -> str:
+    return words[x['word']]['plain'] if 'word' in x else x['description']
+
+def standard_entry(x: dict, by_id: dict[str, dict], on_links: set[str], words: dict[str, dict]) -> str:
+    e = lambda t: html.escape(t, quote=False)
+    users, itself = standard_users(x, by_id, on_links)
+    tags = [STANDARD_KIND[x['kind']], STANDARD_STATUS[x['status']], STANDARD_OPEN[x['openness']]]
+    facts = x.get('codec') or x.get('transport')
+    rows = [('Made by', e(x['maker']))]
+    if x['licence']:
+        rows.append(('Licence', e(x['licence'])))
+    elif facts:
+        rows.append(('Licence', e(facts['licensing']['text'])))
+    if x['group'] == 'app-formats':
+        rows.append(('App', users[0]))
+        rows.append(('Also used by', ', '.join(users[1:])))
+    elif users:
+        rows.append(('Used by', ', '.join(users)))
+    else:
+        rows.append(('Used by', 'None named yet'))
+    if itself:
+        rows.append(('In the link list', itself))
+    if facts:
+        table = ('compare-codecs', 'Codecs compared') if 'codec' in x else ('compare-transports', 'Ways to send a stream compared')
+        rows.append(('More', f'<a href="#{table[0]}">{table[1]}</a>'))
+    plain = e(standard_plain(x, words))
+    if 'word' in x:
+        plain += f""" <a class="std-word" href="glossary.html#{x['word']}">From the glossary</a>"""
+    link = f'''Described at <a href="{html.escape(x['url'])}">{e(short_url(x['url']))}</a>''' if x['url'] else 'No public page yet'
+    more = f"""\n          <p class="std-note">{e(x['notes'])}</p>""" if x['notes'] else ''
+    if x['sources']:
+        more += '\n          ' + sources_fold(' · '.join((f'''<a href="{html.escape(s['url'])}">{e(s['label'])}</a>''' for s in x['sources'])), 'std-src')
+    hay = ' '.join([x['name'], standard_plain(x, words), x['maker'], *tags, *(by_id[r]['name'] for r in x['service_ids']), *x['other_users']]).lower()
+    return f'''        <article class="std" id="{x['id']}" aria-labelledby="{x['id']}-h" data-search="{html.escape(hay)}">\n          <h3 id="{x['id']}-h">{e(x['name'])}</h3>\n          <p class="std-tags">''' + ''.join((f'<span class="tag">{t}</span>' for t in tags)) + f'</p>\n          <p class="plain">{plain}</p>\n          <dl class="std-facts">' + ''.join((f'<div><dt>{k}</dt><dd>{v}</dd></div>' for k, v in rows)) + f"""</dl>\n          <p class="std-foot">{link}<span class="dated">Checked {long_date(x['checked_on'])}</span></p>{more}\n        </article>"""
+
+def fill_standards(body: str, standards: list[dict], services: list[dict], words: list[dict]) -> str:
+    if '<!--standards:' not in body:
+        return body
+    words_by_id = {w['id']: w for w in words}
+    by_id = {s['id']: s for s in services}
+    on_links = {s['id'] for s in services if any((s['role'] in r for _, _, r, _, _ in LINK_SECTIONS))}
+    groups = [(g, a, h, sub, [x for x in standards if x['group'] == g]) for g, a, h, sub in STANDARD_GROUPS]
+    toc = '\n      '.join((f'<li data-for="{a}"><a href="#{a}">{h} <span class="count">{len(xs)}</span></a></li>' for _, a, h, _, xs in groups if xs))
+    parts = []
+    for _, a, h, sub, xs in groups:
+        if not xs:
+            continue
+        names = ''.join((f"""<li><a href="#{x['id']}">{html.escape(x['name'].split(' (')[0], quote=False)}</a></li>""" for x in xs))
+        entries = '\n      <div class="std-list">\n' + '\n'.join((standard_entry(x, by_id, on_links, words_by_id) for x in xs)) + '\n      </div>\n      '
+        parts.append(f'''    <section class="part std-group" id="{a}" aria-labelledby="{a}-h">\n      <h2 id="{a}-h">{h}</h2>\n      <p class="sum">{sub}</p>\n      <ul class="std-names" aria-label="In this group">{names}</ul>\n      {fold(f'All {len(xs)} entries, with details', entries, 'std-fold')}\n    </section>''')
+    toc += ''.join((f'\n      <li><a href="#{a}">{h}</a></li>' for a, h, _ in COMPARE_TABLES))
+    return body.replace('<!--standards:toc-->', toc).replace('<!--standards:sections-->', '\n\n'.join(parts)).replace('<!--standards:compare-->', compare_tables(standards)).replace('<!--standards:count-->', str(len(standards)))
+
+COMPARE_TABLES = [('compare-codecs', 'Codecs compared', 'codec'), ('compare-transports', 'Ways to send a stream compared', 'transport')]
+
+SUPPORT = {'yes': 'Yes', 'some': 'Some', 'no': 'No', 'unknown': 'Unknown'}
+
+FACT_LABELS = {'licensing': {'royalty-free': 'Royalty-free', 'patent-pools': 'Patent pools', 'open-spec': 'Open spec', 'open-code': 'Open code', 'proprietary': 'Proprietary'}, 'bonding': {'built-in': 'Built in', 'add-on': 'Add-on', 'no': 'No'}, 'latency': {'buffer': 'Buffer you set', 'real-time': 'Real-time', 'tcp': 'Follows TCP'}, 'loss_recovery': {'resend': 'Resends', 'resend-and-fec': 'Resends and FEC', 'tcp': 'TCP resends'}}
+
+GEAR = [('ios', 'iPhone'), ('android', 'Android'), ('rk3588', 'RK3588'), ('intel', 'Intel'), ('nvidia', 'NVIDIA'), ('apple_mac', 'Mac')]
+
+PLATFORMS = [('twitch', 'Twitch'), ('youtube', 'YouTube'), ('kick', 'Kick')]
+
+CODEC_HEADERS = ['Codec', 'Licence and royalties', 'Efficiency', 'Hardware encode', 'Hardware decode', 'Twitch', 'YouTube', 'Kick']
+
+TRANSPORT_HEADERS = ['Protocol', 'Can be bonded', 'Free to use or licence', 'Latency', 'Loss recovery', 'Twitch', 'YouTube', 'Kick']
+
+UNVERIFIED = '<abbr class="unv" title="Not confirmed by the makers\' or platforms\' own pages">U</abbr>'
+
+class Notes:
+    """Numbered source notes under one table. A cell that shows its claim inline points at a note with the sources
+    and the check date; a compact cell (Yes, No…) points at a note that also holds the claim. Equal notes share a number."""
+
+    def __init__(self, prefix: str):
+        self.prefix, self.items, self.index = (prefix, [], {})
+
+    def ref(self, fact: dict, with_text: bool) -> str:
+        key = json.dumps([fact['text'] if with_text else None, fact['sources'], fact['checked_on'], bool(fact.get('unverified'))])
+        if key not in self.index:
+            self.items.append((fact, with_text))
+            self.index[key] = len(self.items)
+        n = self.index[key]
+        u = f' {UNVERIFIED}' if fact.get('unverified') else ''
+        return f'<a class="fn" href="#{self.prefix}-{n}" aria-label="Source {n}">[{n}]</a>{u}'
+
+    def html(self) -> str:
+        e = lambda t: html.escape(t, quote=False)
+        out = []
+        for n, (fact, with_text) in enumerate(self.items, 1):
+            text = ("Not confirmed by the makers' or platforms' own pages. " if fact.get('unverified') else '') + (e(fact['text']) + ' ' if with_text else '')
+            src = ' · '.join((f'''<a href="{html.escape(s['url'])}">{e(s['label'])}</a>''' for s in fact['sources']))
+            out.append(f'''<li id="{self.prefix}-{n}">{text}<span class="tip-src">Sources: {src}</span> <span class="dated">Checked {long_date(fact['checked_on'])}</span></li>''')
+        return '<ol class="cmp-notes">' + ''.join(out) + '</ol>'
+
+def compare_tables(standards: list[dict]) -> str:
+    e = lambda t: html.escape(t, quote=False)
+
+    def inline(notes: Notes, field: str, fact: dict) -> str:
+        label = FACT_LABELS[field][fact['value']]
+        text = re.sub(f'^{re.escape(label)}\\s*[:;,.]\\s*', '', fact['text'], flags=re.I)
+        if text != fact['text'] and (not text.startswith('lib')):
+            text = text[:1].upper() + text[1:]
+        return f'<strong>{label}</strong> {e(text)} {notes.ref(fact, False)}'
+
+    def compact(notes: Notes, value: str, fact: dict) -> str:
+        return f'<strong>{SUPPORT[value]}</strong> {notes.ref(fact, True)}'
+
+    def row_head(x: dict) -> str:
+        return f"""<th scope="row"><a href="#{x['id']}">{e(x['name'].split(' (')[0])}</a></th>"""
+
+    def table(anchor: str, title: str, lede: str, teaser: str, headers: list[str], rows: list[str], notes: Notes) -> str:
+        head = ''.join((f'<th scope="col">{h}</th>' for h in headers))
+        inner = f'\n      <p class="cmp-hint" aria-hidden="true">Scroll the table sideways to see every column. Each [number] leads to its source.</p>\n      <div class="cmp-scroll" role="group" aria-labelledby="{anchor}-h" tabindex="0">\n        <table class="cmp-table"><thead><tr>{head}</tr></thead><tbody>\n' + '\n'.join((f'          <tr>{r}</tr>' for r in rows)) + '\n        </tbody></table>\n      </div>\n      ' + fold(f'Sources for this table ({len(notes.items)} notes)', notes.html(), 'sources cmp-src') + '\n      '
+        return f'''    <section class="part cmp" id="{anchor}" aria-labelledby="{anchor}-h">\n      <h2 id="{anchor}-h">{title}</h2>\n      <p class="sum">{lede}</p>\n      <p class="cmp-teaser">{teaser}</p>\n      {fold('Show the table', inner, 'cmp-fold')}\n    </section>'''
+
+    def row_names(xs: list[dict]) -> str:
+        ns = [f"""<a href="#{x['id']}">{e(x['name'].split(' (')[0])}</a>""" for x in xs]
+        return ', '.join(ns[:-1]) + ' and ' + ns[-1]
+    codecs = [x for x in standards if 'codec' in x]
+    baselines = {r for x in codecs for r in (x['codec']['efficiency'] or {}).get('compared_with', [])}
+    names = {x['id']: x['name'].split(' (')[0] for x in standards}
+    cn, rows = (Notes('cc'), [])
+    for x in sorted(codecs, key=lambda x: x['codec']['media'] != 'video'):
+        c = x['codec']
+        lic = inline(cn, 'licensing', c['licensing'])
+        if c['efficiency']:
+            eff = f"{e(c['efficiency']['text'])} {cn.ref(c['efficiency'], False)}"
+        elif x['id'] in baselines:
+            others = [names[y['id']] for y in codecs if x['id'] in (y['codec']['efficiency'] or {}).get('compared_with', [])]
+            eff = f"The baseline: {e(' and '.join(others))} {('compare' if len(others) > 1 else 'compares')} with it."
+        else:
+            eff = 'No published comparison listed.'
+        hw = []
+        for side in ('encode', 'decode'):
+            if c['hardware'] is None:
+                hw.append('<td>Not listed for audio.</td>')
+            else:
+                hw.append('<td><ul class="cmp-gear">' + ''.join((f"<li><span>{label}</span> {compact(cn, c['hardware'][k][side], c['hardware'][k])}</li>" for k, label in GEAR)) + '</ul></td>')
+        cells = [f'<td>{lic}</td>', f'<td>{eff}</td>', *hw, *(f"<td>{compact(cn, c['ingest'][k]['value'], c['ingest'][k])}</td>" for k, _ in PLATFORMS)]
+        rows.append(row_head(x) + ''.join(cells))
+    ordered = sorted(codecs, key=lambda x: x['codec']['media'] != 'video')
+    out = [table('compare-codecs', 'Codecs compared', 'Video first, then sound. Hardware is what the chip or platform maker lists; a phone app may still fall back to software.', f'{row_names(ordered)}, side by side: licence and royalties, how much data they need for the same quality, which chips encode and decode them, and which platforms take them.', CODEC_HEADERS, rows, cn)]
+    tn, rows = (Notes('ct'), [])
+    for x in [x for x in standards if 'transport' in x]:
+        t = x['transport']
+        cells = [f'<td>{inline(tn, f, t[f])}</td>' for f in ('bonding', 'licensing', 'latency', 'loss_recovery')]
+        cells += [f"<td>{compact(tn, t['ingest'][k]['value'], t['ingest'][k])}</td>" for k, _ in PLATFORMS]
+        rows.append(row_head(x) + ''.join(cells))
+    transports = [x for x in standards if 'transport' in x]
+    out.append(table('compare-transports', 'Ways to send a stream compared', "How each protocol gets a stream from the phone or box to the next step. Where a platform doesn't take one, a relay or production service turns it into RTMP.", f'{row_names(transports)}, side by side: whether they can be bonded, licence, delay, how they recover lost packets, and which platforms take them.', TRANSPORT_HEADERS, rows, tn))
+    return '\n\n'.join(out)
+
+WORDS_FOR_CHECK: list[dict] = []
+
+GUIDES: list[dict] = []
+
+GUIDE_GROUPS = [('camera', 'Camera into the sender'), ('sender', 'Sending from the phone or box'), ('connections', 'Connections and bonding'), ('receiver', 'Receivers and relays'), ('obs', 'Into OBS'), ('platform', 'Going out to the platform')]
+
+def guide_meta(g: dict, with_creator: bool=False) -> str:
+    kind = 'video' if g['kind'] == 'video' else 'article'
+    by = f" by {html.escape(g['creator'], quote=False)}" if with_creator else ''
+    return f"""<span class="guide-meta">“{html.escape(g['title'], quote=False)}”, {kind}{by}</span>"""
+
+def guide_link(g: dict) -> str:
+    return f'''<a href="{html.escape(g['url'])}">{html.escape(g['title_display'], quote=False)}</a> {guide_meta(g, True)}'''
+
+def guides_for(key: str, ident: str) -> list[dict]:
+    return [g for g in GUIDES if ident in g[key]]
+
+def guide_by(g: dict) -> str:
+    others = [c for c in g['covers'] if c != g['publisher']]
+    if g['publisher'] and (not others):
+        return "Maker's own guide"
+    if g['publisher']:
+        return f"Guide by {SERVICES_BY_ID[g['publisher']]['name']}"
+    return f"Guide by {g['creator']}"
+
+STACK_STEPS = [('sender', 'Sender', 'the app or box that sends your stream, and what feeds it', ('streaming-app', 'camera-capture', 'hardware')), ('connections', 'Connections', 'extra mobile data, hotspots and bonding apps', ('extra-connections',)), ('receiver', 'Receiver or relay', 'joins a bonded stream back together', ('relay',)), ('production', 'Production', 'OBS, cloud hubs, remote control and chat tools', ('hub', 'production', 'remote-control', 'chat-overlays', 'other-app'))]
+
+GUIDES_FOR_PART = {'camera': 'the guides for camera input', 'sender': 'the guides for any sender', 'connections': 'the guides for connections and bonding', 'receiver': 'the guides for receivers and relays', 'obs': 'the guides for OBS and switching', 'platform': 'the guides for going out to the platform'}
+
+PLATFORM_LABEL = {'ios': 'iPhone', 'android': 'Android'}
+
+STACK_IDS: list[str] = []
+
+def channels(s: dict) -> list[dict]:
+    return s['support'] + SITE_SUPPORT_EXTRA.get(s['id'], [])
+
+def stack_keys(s: dict) -> list[str]:
+    return s['covers'] if s['kind'] == 'community' else [s['id']]
+
+def guide_count(sid: str) -> int:
+    return sum((1 for g in GUIDES if sid in g['covers']))
+
+def pick_meta(sv: dict) -> str:
+    bits = []
+    phones = [label for key, label in PLATFORM_LABEL.items() if key in sv['platforms']]
+    if phones:
+        bits.append(' and '.join(phones))
+    n = guide_count(sv['id'])
+    if n:
+        bits.append(f"{n} guide{('s' if n != 1 else '')}")
+    return ' · '.join(bits)
+
+def stack_steps(services: list[dict]) -> tuple[list[str], int]:
+    in_guides = {c for g in GUIDES for c in g['covers']}
+    asked = {k for s in services if channels(s) for k in stack_keys(s)}
+    short = in_guides | asked
+    steps = []
+    STACK_IDS.clear()
+    extras = 0
+    for key, label, hint, roles in STACK_STEPS:
+        items = sorted((s for s in services if s['role'] in roles), key=lambda s: (guide_count(s['id']) == 0, s['name'].lower()))
+        lis = []
+        for sv in items:
+            STACK_IDS.append(sv['id'])
+            extra = '' if sv['id'] in short else ' extra'
+            extras += bool(extra)
+            meta = pick_meta(sv)
+            hay = ' '.join([sv['name'], sv.get('maker') or '']).lower()
+            lis.append(f'''<li class="pick{extra}" data-search="{html.escape(hay)}"><label class="pick-card"><input type="checkbox" id="pick-{sv['id']}" name="stack" value="{sv['id']}"><span class="pick-text"><span class="pick-name">{html.escape(sv['name'], quote=False)}</span>''' + (f'<span class="pick-meta">{html.escape(meta, quote=False)}</span>' if meta else '') + '</span></label></li>')
+        steps.append(f'        <fieldset class="stack-step" id="step-{key}">\n          <legend>{html.escape(label, quote=False)} <span>{html.escape(hint, quote=False)}</span></legend>\n          <ul class="picks-list">\n            ' + '\n            '.join(lis) + '\n          </ul>\n        </fieldset>')
+    return (steps, extras)
+
+def stack_picker_html(services: list[dict]) -> str:
+    steps, extras = stack_steps(services)
+    return f'<section class="part setup" id="my-stack" aria-labelledby="my-stack-h">\n      <h2 id="my-stack-h">Your setup</h2>\n      <p class="sum">Pick the apps and services you use, and the guides and help for them show up first.</p>\n      <div class="setup-picker" id="setup-picker" tabindex="-1" aria-label="Pick your apps and services">\n      <form class="stack-picker" id="stack-form" aria-label="Your setup">\n        <div class="setup-find" id="setup-find" hidden>\n          <p class="search-field"><label for="stack-q">Find an app or service</label> <input type="search" id="stack-q" autocomplete="off" spellcheck="false"></p>\n          <p class="find-count" id="stack-find-count" role="status"></p>\n        </div>\n        <p class="setup-order">In each step, apps with guides come first, then A to Z. Not sure about a step? Leave it empty.</p>\n{chr(10).join(steps)}\n        <p class="no-pick-match" id="stack-nomatch" hidden>No app or service matches that. <a href="contribute.html#listed">Missing an app? Tell me</a></p>\n        <p class="stack-more"><label><input type="checkbox" id="stack-all"> Show {extras} more (no guide or help channel listed yet)</label></p>\n        <p class="stack-actions"><button type="reset" class="btn">Clear all picks</button> <a href="contribute.html#listed">Missing an app? Tell me</a></p>\n      </form>\n      <div class="stack-js" id="stack-js" hidden>\n        <p class="stack-status" id="stack-status" role="status"></p>\n        <p class="stack-line"><label><input type="checkbox" id="stack-remember"> Remember on this device</label> <span class="stack-hint">Saved in this browser only.</span> <button type="button" class="btn" id="stack-forget">Forget</button></p>\n        <p class="stack-line"><button type="button" class="btn" id="stack-copy">Copy link for a helper</button> <span class="stack-hint" id="stack-link-note">The link holds only the names you picked.</span></p>\n      </div>\n      </div>\n    </section>\n    <div class="setup-bar" id="setup-bar" hidden>\n      <p><strong>Your setup:</strong> <span id="setup-names">nothing picked yet</span></p>\n      <button type="button" class="btn" id="setup-edit" aria-controls="setup-picker" aria-expanded="true">Done</button>\n    </div>'
+
+def stack_filter_html(services: list[dict]) -> str:
+    steps, extras = stack_steps(services)
+    return f'<div class="setup-bar filter-bar" id="setup-bar" hidden>\n        <p><strong>Filter guides for your setup</strong><span class="setup-sep">: </span><span id="setup-names">nothing picked yet</span></p>\n        <button type="button" class="btn" id="setup-edit" aria-controls="setup-picker" aria-expanded="true">Done</button>\n      </div>\n      <div class="setup setup-filter" id="my-stack">\n      <h4 class="setup-nojs" id="my-stack-h" data-permalink="no">Filter guides for your setup</h4>\n      <div class="setup-picker" id="setup-picker" tabindex="-1" aria-label="Pick your apps and services">\n      <form class="stack-picker" id="stack-form" aria-label="Your setup">\n        <div class="setup-find" id="setup-find" hidden>\n          <p class="search-field"><label for="stack-q">Find an app or service</label> <input type="search" id="stack-q" autocomplete="off" spellcheck="false"></p>\n          <p class="find-count" id="stack-find-count" role="status"></p>\n        </div>\n{chr(10).join(steps)}\n        <p class="no-pick-match" id="stack-nomatch" hidden>No app or service matches that. <a href="contribute.html#listed">Missing an app? Suggest it</a></p>\n        <p class="stack-more"><label><input type="checkbox" id="stack-all"> Show {extras} more (no guide or help channel listed yet)</label></p>\n        <p class="stack-actions"><button type="reset" class="btn">Clear all picks</button> <a href="contribute.html#listed">Missing an app? Suggest it</a></p>\n      </form>\n      <div class="stack-js" id="stack-js" hidden>\n        <p class="stack-status" id="stack-status" role="status"></p>\n        <p class="stack-line"><label><input type="checkbox" id="stack-remember"> Remember on this device</label> <span class="stack-hint">Saved in this browser only.</span> <button type="button" class="btn" id="stack-forget">Forget</button></p>\n        <p class="stack-line"><button type="button" class="btn" id="stack-copy">Copy link for a helper</button> <span class="stack-hint" id="stack-link-note">The link holds only the names you picked.</span></p>\n      </div>\n      </div>\n      </div>'
+
+def needs_groups(g: dict) -> list[list[str]]:
+    others = [c for c in g['covers'] if c != g['publisher']]
+    if g['publisher'] and g['publisher'] in g['covers'] and others:
+        return [[g['publisher']], others]
+    return [[c] for c in g['covers']]
+
+def needs_attr(g: dict) -> str:
+    return '|'.join((' '.join(grp) for grp in needs_groups(g)))
+
+def guide_item(g: dict, where: str) -> str:
+    chips = ''.join((f"""<a class="chip" href="#for-{c}">{html.escape(SERVICES_BY_ID[c]['name'], quote=False)}</a>""" for c in g['covers']))
+    needs = ''
+    if where == 'partly':
+        spans = ''.join((f'''<span class="need" data-need="{' '.join(grp)}">{html.escape(' or '.join((SERVICES_BY_ID[c]['name'] for c in grp)), quote=False)}</span>''' for grp in needs_groups(g)))
+        needs = f'<span class="needs">Also needs {spans}</span>'
+    cls = 'rest' if where == 'rest' else f'mine {where}'
+    return f'''<li class="{cls}" data-guide="{g['id']}" data-stack="{' '.join(g['covers'])}" data-needs="{needs_attr(g)}"><a class="guide-title" href="{html.escape(g['url'])}">{html.escape(g['title_display'], quote=False)}</a>{needs}<span class="guide-chips">{chips}<span class="guide-by">{html.escape(guide_by(g), quote=False)}</span></span>{guide_meta(g)}</li>'''
+
+def rest_heading(hid: str, none_label: str, lv: int=3) -> str:
+    return f'      <h{lv} class="rest-h" id="{hid}" data-permalink="no"><span class="if-picks">Everything else</span><span class="if-none vh">{none_label}</span></h{lv}>'
+
+def guides_list_html(guides: list[dict], lv: int=3) -> str:
+    groups_present = [(p, l) for p, l in GUIDE_GROUPS if any((g['part'][0] == p for g in guides))]
+    ordered = [g for p, _ in groups_present for g in sorted((g for g in guides if g['part'][0] == p), key=lambda g: g['title_display'].lower())]
+    covered = {c for g in guides for c in g['covers']}
+    fbs = []
+    for sid in STACK_IDS:
+        if sid in covered:
+            continue
+        sv = SERVICES_BY_ID[sid]
+        part = sv['part'][0]
+        group = part if any((p == part for p, _ in groups_present)) else groups_present[0][0]
+        name = html.escape(sv['name'], quote=False)
+        fbs.append(f'''<p class="fb" data-for="{sid}">No guide for {name} yet. See <a href="#guides-{group}">{GUIDES_FOR_PART[group]}</a>, <a href="{html.escape(sv['url'])}">{name}’s own page</a>, or <a href="contribute.html#listed">ask for a guide</a>.</p>''')
+    can_part = [g for g in ordered if len(needs_groups(g)) > 1]
+    h, s = (f'h{lv}', f'h{lv + 1}')
+    mine = f'      <div class="for-stack if-picks">\n      <{h} id="guides-mine" data-permalink="no">For your setup</{h}>\n      <{s} class="fit-h">Fits your setup</{s}>\n      <ul class="guides-list fit-list">\n        ' + '\n        '.join((guide_item(g, 'fit') for g in ordered)) + f'\n      </ul>\n      <{s} class="part-h">Partly fits: each also needs an app or service you didn’t pick</{s}>\n      <ul class="guides-list part-list">\n        ' + '\n        '.join((guide_item(g, 'partly') for g in can_part)) + '\n      </ul>\n      ' + '\n      '.join(fbs) + '\n      </div>'
+    out = []
+    for part, label in groups_present:
+        gs = [g for g in ordered if g['part'][0] == part]
+        out.append(f'      <{s} id="guides-{part}">{html.escape(label, quote=False)}</{s}>\n      <ul class="guides-list">\n        ' + '\n        '.join((guide_item(g, 'rest') for g in gs)) + '\n      </ul>')
+    rows = []
+    for c in sorted(covered, key=lambda c: SERVICES_BY_ID[c]['name'].lower()):
+        gs = [g for g in ordered if c in g['covers']]
+        tasks = [g['title_display'].split(': ', 1)[1] for g in gs]
+        labels = [t if tasks.count(t) == 1 else f"{t} (“{g['title']}”)" for t, g in zip(tasks, gs)]
+        links = ' · '.join((f'''<a href="{html.escape(g['url'])}">{html.escape(l, quote=False)}</a>''' for l, g in zip(labels, gs)))
+        rows.append(f"""<li id="for-{c}"><strong>{html.escape(SERVICES_BY_ID[c]['name'], quote=False)}</strong> {links}</li>""")
+    nav = '      <ul class="guide-groups" aria-label="Guide groups">' + ''.join((f'<li><a href="#guides-{p}">{html.escape(l, quote=False)}</a></li>' for p, l in groups_present)) + '</ul>'
+    index = f'      <{s} id="guides-by-product">By product</{s}>\n      <ul class="guide-index">\n        ' + '\n        '.join(rows) + '\n      </ul>'
+    return mine + '\n' + rest_heading('guides-rest', 'All guides, by part of the chain', lv) + '\n' + nav + '\n' + '\n'.join(out) + '\n' + index
+
+def service_tags(s: dict) -> str:
+    tags = []
+    if s['status']:
+        tags.append(s['status'][0].upper() + s['status'][1:])
+    if s['licence']:
+        tags.append(s['licence'])
+    elif s['open_source'] is False:
+        tags.append('Closed source')
+    return ''.join((f' <span class="tag">{html.escape(x, quote=False)}</span>' for x in tags))
+
+def service_line(s: dict, with_extra: bool=True) -> str:
+    extra = ''
+    url, links, home = (s['url'], s['links'], '')
+    if NEXT and with_extra and (s['id'] in SITE_HOME):
+        url, home = SITE_HOME[s['id']]
+        links = [{'label': 'GitHub' if 'github.com/' in s['url'] else site_name(s['url']), 'url': s['url']}, *links]
+    if with_extra and (links or home):
+        extra = ' <span class="also">(' + (html.escape(home, quote=False) + '; ' if home else '') + ', '.join((f'''<a href="{html.escape(l['url'])}">{html.escape(l['label'], quote=False)}</a>''' for l in links)) + ')</span>'
+    n = sum((1 for g in GUIDES if s['id'] in g['covers']))
+    guides = f""" <a class="guides-n" href="help.html#for-{s['id']}">{n} guide{('s' if n != 1 else '')}</a>""" if with_extra and n else ''
+    if NEXT and with_extra:
+        chans = channels(s)
+        if chans:
+            guides += ' <span class="ask-line"><strong>Where to ask:</strong> ' + ' · '.join((f'''<a href="{html.escape(c['url'])}">{html.escape(c['label'], quote=False)}</a>''' for c in chans)) + '</span>'
+    role = '' if with_extra else f""" <span class="tag">{ROLE_CHIP[s['role']]}</span>"""
+    anchor = f''' id="{s['id']}"''' if with_extra else ''
+    return f'''<li{anchor}><a href="{html.escape(url)}">{html.escape(s['name'], quote=False)}</a>{extra}: {html.escape(s['description'], quote=False)}{role}{service_tags(s)}{guides}</li>'''
+
+SITE_SUPPORT_EXTRA = {'irlplus-cast': [{'label': 'IRL+ Discord', 'url': 'https://discord.gg/GCrKZNj5VA'}], 'irlplus-chat': [{'label': 'IRL+ Discord', 'url': 'https://discord.gg/GCrKZNj5VA'}], 'irl-pro': [{'label': 'IRL Pro Discord', 'url': 'https://discord.gg/irlpro'}], 'moblin': [{'label': 'Moblin Discord', 'url': 'https://discord.moblin.app'}], 'tvu-go': [{'label': 'TVU Go Discord', 'url': 'https://discord.com/invite/NYemJf98A5'}], 'belabox-cloud': [{'label': 'BELABOX Discord', 'url': 'https://discord.gg/hS8TcpsCKu'}], 'irlplus-bond': [{'label': 'IRL+ Discord', 'url': 'https://discord.gg/GCrKZNj5VA'}], 'belabox': [{'label': 'BELABOX Discord', 'url': 'https://discord.gg/hS8TcpsCKu'}], 'ceralive': [{'label': 'CeraLive Discord', 'url': 'https://discord.gg/Q2bvU49yx2'}], 'irlplus-store': [{'label': 'IRL+ Discord', 'url': 'https://discord.gg/GCrKZNj5VA'}], 'yolobox-ultra': [{'label': 'YoloLiv Discord', 'url': 'https://discord.gg/UtdFmhS3J5'}], 'irlplus-video-mixer': [{'label': 'IRL+ Discord', 'url': 'https://discord.gg/GCrKZNj5VA'}], 'irlhosting': [{'label': 'IRLhosting Discord', 'url': 'https://discord.gg/IRltools'}], 'irltoolkit': [{'label': 'IRLToolkit Discord', 'url': 'https://irltoolkit.com/discord'}], 'obs-studio': [{'label': 'OBS Discord', 'url': 'https://discord.gg/obsproject'}], 'streamer-bot': [{'label': 'Streamer.bot Discord', 'url': 'https://discord.streamer.bot'}]}
+
+SITE_HOME = {'moblink': ('https://discord.gg/kh3KMng4JV', "on Moblin's Discord, in #tech-support-forum")}
+
+ROLE_CHIP = {'streaming-app': 'Streaming app', 'extra-connections': 'Extra connection', 'camera-capture': 'Camera and capture', 'remote-control': 'Remote control', 'chat-overlays': 'Chat, alerts and overlays', 'other-app': 'Other app', 'relay': 'Relay or receiver', 'hub': 'Hosted hub', 'production': 'Production and OBS', 'hardware': 'Hardware', 'community': 'Community and docs'}
+
+LINK_SECTIONS = [('l-streaming', 'Streaming apps', ('streaming-app',), 'The app that sends your stream.', "And the platforms' own mobile apps: the simplest start, without bonding."), ('l-connections', 'Extra connections', ('extra-connections',), 'Apps, services and hardware that add another connection to your stream.', 'Each connection needs its own SIM or data plan: see <a href="data-plans.html">Data plans and SIMs</a>.'), ('l-camera', 'Camera and capture', ('camera-capture',), 'Apps that bring a camera or screen into the streaming app.', ''), ('l-remote', 'Remote control', ('remote-control',), 'Run OBS or the streaming app from another device.', ''), ('l-chat', 'Chat, alerts and overlays', ('chat-overlays',), '', ''), ('l-other', 'Other apps', ('other-app',), '', ''), ('l-bond', 'Bonding, relays and receivers', ('relay',), '<em>SRTLA</em> is an open way to send one SRT stream over several connections at once. A receiver joins it back together.', ''), ('l-hw', 'Hardware and backpacks', ('hardware',), '', ''), ('l-prod', 'Hubs, production and OBS', ('hub', 'production'), '', ''), ('l-comm', 'Communities and docs', ('community',), '', '')]
+
+def services_support_table(services: list[dict]) -> str:
+
+    def row(sv: dict, mine: bool) -> str:
+        chans = ' · '.join((f'''<a href="{html.escape(c['url'])}">{html.escape(c['label'], quote=False)}</a>''' for c in channels(sv)))
+        if any((sv['id'] in g['covers'] for g in GUIDES)):
+            chans += f""" · <a href="#for-{sv['id']}">See its guides</a>"""
+        rid = '' if mine else f''' id="ask-{sv['id']}"'''
+        return f'''          <tr class="{('mine' if mine else 'rest')}"{rid} data-stack="{' '.join(stack_keys(sv))}"><th scope="row"><a href="{html.escape(sv['url'])}">{html.escape(sv['name'], quote=False)}</a></th><td data-label="What it is">{ROLE_CHIP[sv['role']]}</td><td data-label="Where to ask">{chans}</td></tr>'''
+    listed = sorted((sv for sv in services if channels(sv)), key=lambda sv: sv['name'].lower())
+    answered = {k for sv in listed for k in stack_keys(sv)}
+    none_rows = [f'''          <tr class="fb" data-for="{sid}"><th scope="row"><a href="{html.escape(SERVICES_BY_ID[sid]['url'])}">{html.escape(SERVICES_BY_ID[sid]['name'], quote=False)}</a></th><td data-label="What it is">{ROLE_CHIP[SERVICES_BY_ID[sid]['role']]}</td><td data-label="Where to ask">No public channel listed. <a href="contribute.html#listed">Know one? Tell me</a></td></tr>''' for sid in sorted((i for i in STACK_IDS if i not in answered), key=lambda i: SERVICES_BY_ID[i]['name'].lower())]
+    head = '<thead><tr><th scope="col">Product</th><th scope="col">What it is</th><th scope="col">Where to ask</th></tr></thead>'
+    mine = '      <div class="for-stack if-picks">\n      <h3 id="ask-mine" data-permalink="no">For your setup</h3>\n      <table class="ask-table">\n        ' + head + '\n        <tbody>\n' + '\n'.join((row(sv, True) for sv in listed)) + '\n' + '\n'.join(none_rows) + '\n        </tbody>\n      </table>\n      </div>'
+    rest = '      <table class="ask-table">\n        ' + head + '\n        <tbody>\n' + '\n'.join((row(sv, False) for sv in listed)) + '\n        </tbody>\n      </table>'
+    return mine + '\n' + rest_heading('ask-rest', 'All products') + '\n' + rest
+
+def fill_services(body: str, services: list[dict]) -> str:
+    by_id = {s['id']: s for s in services}
+
+    def in_roles(roles) -> list[dict]:
+        return sorted((s for s in services if s['role'] in roles), key=lambda s: re.sub('[^a-z0-9 ]', '', s['name'].lower()))
+    sections = [x for x in LINK_SECTIONS if in_roles(x[2])]
+    toc = '\n      '.join((f'<li><a href="#{a}">{h} <span class="count">{len(in_roles(r))}</span></a></li>' for a, h, r, _, _ in sections))
+    parts = []
+    for a, h, r, sub, after in sections:
+        lines = '\n        '.join((service_line(s) for s in in_roles(r)))
+        parts.append(f'    <section class="part" aria-labelledby="{a}">\n      <h2 id="{a}">{h}</h2>\n' + (f'      <p class="sum">{sub}</p>\n' if sub else '') + f'      <ul class="entries">\n        {lines}\n      </ul>\n' + (f'      <p class="meta">{after}</p>\n' if after else '') + '    </section>')
+    body = body.replace('<!--services:toc-->', toc).replace('<!--services:sections-->', '\n\n'.join(parts))
+
+    def names(ids: list[str]) -> str:
+        groups = []
+        for _, h, r, _, _ in LINK_SECTIONS:
+            ns = sorted((by_id[i]['name'] for i in ids if by_id[i]['role'] in r), key=str.lower)
+            if ns:
+                groups.append(f"{(h[0].lower() + h[1:] if not h.startswith('OBS') else h)} ({html.escape(', '.join(ns), quote=False)})")
+        return '; '.join(groups)
+    body = re.sub('<!--services:names:([a-z0-9,-]+)-->', lambda m: names(m.group(1).split(',')), body)
+    body = re.sub('<!--services:picks:([a-z0-9,-]+)-->', lambda m: '\n        '.join((service_line(by_id[i], with_extra=False) for i in m.group(1).split(','))), body)
+    if '<!--stack:picker-->' in body:
+        body = body.replace('<!--stack:picker-->', stack_picker_html(services))
+    if '<!--help:index-->' in body:
+        body = body.replace('<!--help:index-->', help_index_html(GUIDES))
+    if '<!--guides:makers-->' in body:
+        body = body.replace('<!--guides:makers-->', stack_filter_html(services) + '\n' + guides_list_html(GUIDES, 4))
+    body = body.replace('<!--services:support-->', services_support_table(services))
+    body = body.replace('<!--guides:all-->', guides_list_html(GUIDES))
+    body = body.replace('<!--commons:line-->', commons_line())
+    body = body.replace('<!--commons:teaser-->', commons_teaser())
+    return body
+
+PARTS = [('camera', 'Camera and mic', 'what you film and hear'), ('sender', 'Sender', 'the app or box that encodes and sends'), ('connections', 'Connections', 'mobile data, Wi-Fi, hotspots'), ('receiver', 'Receiver', 'joins bonded connections back together'), ('obs', 'OBS', 'your scenes, switching and BRB'), ('platform', 'Platform', 'Twitch, YouTube, Kick and the rest')]
+
+PART_LABEL = {k: label for k, label, _ in PARTS}
+
+SERVICES_BY_ID: dict[str, dict] = {}
+
+def chain_html() -> str:
+    items = '\n      '.join((f'<li class="link-{k}"><strong>{html.escape(label, quote=False)}</strong> <span>{html.escape(sub, quote=False)}</span></li>' for k, label, sub in PARTS))
+    return f'<ol class="part-chain" aria-label="The chain, from camera to platform">\n      {items}\n    </ol>'
+
+def ask_link(sid: str) -> str:
+    s = SERVICES_BY_ID[sid]
+    href = f'help.html#ask-{sid}' if s['support'] or SITE_SUPPORT_EXTRA.get(sid) else s['url']
+    return f'''<a href="{html.escape(href)}">{html.escape(s['name'], quote=False)}</a>'''
+
+def answers_html(answers: list[dict], words: list[dict]) -> tuple[str, str]:
+    names = {w['id']: w['term'] for w in words}
+    toc = '\n      '.join((f"""<li><a href="#{a['id']}">{html.escape(a['question'], quote=False)}</a></li>""" for a in answers))
+    out = []
+    for a in answers:
+
+        def check(c: dict) -> str:
+            tag = f"""<span class="chk-part">{html.escape(PART_LABEL[c['part']], quote=False)}</span> """ if c.get('part') else ''
+            return f"<li>{tag}{html.escape(c['text'], quote=False)}</li>"
+        checks = '\n          '.join((check(c) for c in a['checks']))
+        wl = ', '.join((f'<a href="glossary.html#{w}">{html.escape(names[w], quote=False)}</a>' for w in a.get('words', [])))
+        lines = [f'<p class="answer-words"><strong>Words:</strong> {wl}</p>'] if wl else []
+        gs = guides_for('answers', a['id'])
+        if gs:
+            lines.append('<p class="answer-guides"><strong>Guides:</strong> ' + '; '.join((guide_link(g) for g in gs)) + '</p>')
+        if a['services']:
+            lines.append('<p class="answer-ask"><strong>Where to ask:</strong> ' + ' · '.join((ask_link(i) for i in a['services'])) + '</p>')
+        if a['sources']:
+            src = ', '.join((f'''<a href="{html.escape(s['url'])}">{html.escape(s['label'], quote=False)}</a>''' for s in a['sources']))
+            lines.append(sources_fold(src, 'answer-sources'))
+        if a['id'] in ANSWER_LINKS:
+            label, href = ANSWER_LINKS[a['id']]
+            lines.append(f'<p class="more"><a href="{html.escape(href)}">{html.escape(label, quote=False)} <span class="arrow" aria-hidden="true">→</span></a></p>')
+        extra = ''.join(('\n        ' + x for x in lines))
+        out.append(f'''      <section class="answer" id="{a['id']}" aria-labelledby="{a['id']}-h">\n        <h2 id="{a['id']}-h">{html.escape(a['question'], quote=False)}</h2>\n        <p class="sum">{html.escape(a['summary'], quote=False)}</p>\n        <ol class="checklist">\n          {checks}\n        </ol>{extra}\n        <p class="send">Link to send: <a href="#{a['id']}">checks.html<wbr>#{a['id']}</a></p>\n      </section>''')
+    return (toc, '\n'.join(out))
+
+OUR_GUIDES = [('how-to-irl.html', 'How to IRL'), ('data-plans.html', 'Data plans and SIMs'), ('why-bonding.html', 'Why more than one network?')]
+
+LANGUAGE_NAME = {'en': 'English', 'de': 'German', 'es': 'Spanish', 'fr': 'French', 'pt': 'Portuguese', 'ja': 'Japanese'}
+
+GUIDE_THUMBS: dict[str, dict] = {}
+
+def site_name(url: str) -> str:
+    host = re.sub('^https://', '', url).split('/')[0]
+    return host[4:] if host.startswith('www.') else host
+
+def guides_in_order(guides: list[dict]) -> list[dict]:
+    order = {k: i for i, (k, _, _) in enumerate(PARTS)}
+    return sorted(guides, key=lambda g: (order[g['part'][0]], g['title_display'].lower()))
+
+def help_filters(guides: list[dict]) -> list[tuple[str, str, str, str, int]]:
+    out = [('part', f'guides-{k}', label, f'[data-p~="{k}"]', sum((1 for g in guides if k in g['part']))) for k, label, _ in PARTS]
+    covered = sorted({c for g in guides for c in g['covers']}, key=lambda c: SERVICES_BY_ID[c]['name'].lower())
+    out += [('product', f'for-{c}', SERVICES_BY_ID[c]['name'], f'[data-c~="{c}"]', sum((1 for g in guides if c in g['covers']))) for c in covered]
+    out += [('kind', f'kind-{k}', label, f'[data-k="{k}"]', sum((1 for g in guides if g['kind'] == k))) for k, label in (('article', 'Articles'), ('video', 'Videos'))]
+    return [f for f in out if f[4]]
+
+HELP_GROUPS = [('part', 'by-part', 'Part of the chain'), ('product', 'by-product', 'Product'), ('kind', 'by-kind', 'Kind')]
+
+def guide_row(g: dict, repeated: bool=False) -> str:
+    esc = lambda t: html.escape(t, quote=False)
+    title = f"{g['title_display']} (“{g['title']}”)" if repeated else g['title_display']
+    kind = 'Video' if g['kind'] == 'video' else 'Article'
+    site = site_name(g['url'])
+    names = [SERVICES_BY_ID[c]['name'] for c in g['covers']]
+    hay = ' '.join([g['title_display'], g['title'], g['creator'], site, *names]).lower()
+    thumb, sub = ('', f'{kind} · {esc(site)}')
+    m = GUIDE_THUMBS.get(g['id'])
+    if m:
+        thumb = f'''<a class="dir-thumb" href="{html.escape(g['url'])}" tabindex="-1" aria-hidden="true"><img src="assets/thumbs/{html.escape(m['file'])}" width="{m['width']}" height="{m['height']}" alt="" loading="lazy" decoding="async"></a>'''
+        sub += f" · thumbnail: {esc(m['credit'])}"
+    date = long_date(g['published']) if g.get('published') else 'Not given on the page'
+    facts = [('Original title', f"“{esc(g['title'])}”"), ('By', esc(g['creator'])), ('Kind', kind), ('Language', LANGUAGE_NAME.get(g['language'], g['language'])), ('Published', date), ('Covers', ', '.join((f"""<a href="links.html#{c}">{esc(SERVICES_BY_ID[c]['name'])}</a>""" for c in g['covers']))), ('Part of the chain', ', '.join((PART_LABEL[p] for p in dict.fromkeys(g['part']))))]
+    dl = ''.join((f'<div><dt>{k}</dt><dd>{v}</dd></div>' for k, v in facts))
+    return f'''<li class="dir-row{(' has-thumb' if m else '')}" id="{g['id']}" data-p="{' '.join(dict.fromkeys(g['part']))}" data-c="{' '.join(g['covers'])}" data-k="{g['kind']}" data-search="{html.escape(hay)}">{thumb}<div class="dir-text"><a class="dir-title" href="{html.escape(g['url'])}">{esc(title)}</a><span class="dir-sub">{sub}</span><details class="dir-more"><summary>Details<span class="vh">: {esc(title)}</span></summary><dl class="dir-facts">{dl}</dl></details></div></li>'''
+
+def help_index_html(guides: list[dict]) -> str:
+    esc = lambda t: html.escape(t, quote=False)
+    filters = help_filters(guides)
+    ours = '\n        '.join((f'<li><a href="{href}">{esc(label)}</a></li>' for href, label in OUR_GUIDES))
+    marks = ''.join((f'<span class="dir-mark" id="{fid}"></span>' for _, fid, _, _, _ in filters))
+    picks = []
+    for group, gid, heading in HELP_GROUPS:
+        items = ''.join((f'<li><a href="#{fid}">{esc(label)} <span class="n">{n}</span></a></li>' for grp, fid, label, _, n in filters if grp == group))
+        picks.append(f'<details class="dir-pick" id="{gid}"><summary>{heading}<span class="dir-cur"></span></summary><ul>{items}</ul></details>')
+    notes = ''.join((f'''<p class="dir-note" data-f="{fid}">{esc(label)}: {n} guide{('s' if n != 1 else '')}. <a href="#guides">Show all</a></p>''' for _, fid, label, _, n in filters))
+    titles = [g['title_display'] for g in guides]
+    rows = '\n        '.join((guide_row(g, titles.count(g['title_display']) > 1) for g in guides_in_order(guides)))
+    return f"""    <section class="part" id="ours" aria-labelledby="ours-h">\n      <h2 id="ours-h">Our guides</h2>\n      <ul class="bul ours">\n        {ours}\n      </ul>\n    </section>\n\n    <section class="part dir" id="guides" aria-labelledby="guides-h">\n      <h2 id="guides-h">Guide directory</h2>\n      <p class="sum">Tutorials from the makers' own docs and channels, and from people who know the apps. Each title opens the article or video on its own site.</p>\n      <div class="dir-marks">{marks}</div>\n      <div class="dir-filter" role="group" aria-label="Filter the guides">\n        {''.join(picks)}\n        <p class="search-field dir-search" id="dir-search" hidden><label for="dir-q">Search</label> <input type="search" id="dir-q" autocomplete="off" spellcheck="false"></p>\n      </div>\n      <div class="dir-notes">{notes}<p class="dir-count" id="dir-count" role="status"></p></div>\n      <ul class="dir-rows">\n        {rows}\n      </ul>\n      <p class="no-words" id="dir-none" hidden>No guide matches that. <button type="button" class="btn" id="dir-none-reset">Show all</button></p>\n    </section>"""
+
+def help_filters_css(guides: list[dict]) -> str:
+    rules = [f'/* Guide filters, derived from upstream data. */', '.dir-note { display: none; }', '@supports selector(:has(a)) {']
+    group_of = {g: gid for g, gid, _ in HELP_GROUPS}
+    for group, fid, label, match, _ in help_filters(guides):
+        on = f'.help-page:has(#{fid}:target)'
+        rules += [f'  {on} .dir-row:not({match}) {{ display: none; }}', f'  {on} .dir-pick a[href="#{fid}"] {{ border-color: var(--fg); background: var(--sunk); box-shadow: inset 0 -3px 0 var(--fg); }}', f'  {on} .dir-note[data-f="{fid}"] {{ display: block; }}', f"""  {on} #{group_of[group]} .dir-cur::before {{ content: ": {label.replace(chr(92), '').replace(chr(34), '')}"; }}"""]
+    rules.append('}')
+    return '\n'.join(rules) + '\n'
+
+def fill_words(body: str, words: list[dict], answers: list[dict] | None=None) -> str:
+    if answers is not None and '<!--answers:' in body:
+        toc, entries = answers_html(answers, words)
+        body = body.replace('<!--answers:toc-->', toc).replace('<!--answers:entries-->', entries).replace('<!--answers:chain-->', chain_html())
+    body = body.replace('<!--words:core-->', words_core(words))
+    for lang in WORD_TEXT:
+        body = body.replace(f'<!--words:entries:{lang}-->', words_entries(words, lang))
+        body = body.replace(f'<!--words:toc:{lang}-->', words_toc(words, lang))
+    return body
+
+ALLOWED_SCRIPTS = {'assets/site.js'}
+
+class Collector(HTMLParser):
+
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=True)
+        self.ids: list[str] = []
+        self.hrefs: list[str] = []
+        self.problems: list[str] = []
+        self.robots = False
+        self.h1 = 0
+        self.mains = 0
+        self.current_nav = 0
+
+    def handle_starttag(self, tag, attrs):
+        a = dict(attrs)
+        if tag == 'script':
+            if not (a.get('src') in ALLOWED_SCRIPTS and set(a) <= {'src', 'defer'}):
+                self.problems.append('<script> is allowed only as a first-party file from ALLOWED_SCRIPTS')
+        elif tag == 'form':
+            if set(a) - {'class', 'id', 'aria-label'}:
+                self.problems.append('<form> may not send anywhere (no action, method or target)')
+        elif tag == 'img':
+            src = a.get('src') or ''
+            if re.match('^(?:[a-z]+:|//)', src, re.I):
+                self.problems.append(f'''<img src="{src[:60]}"> must be a file of this site (CSP img-src 'self')''')
+            for need in ('alt', 'width', 'height'):
+                if need not in a:
+                    self.problems.append(f'<img src="{src[:60]}"> needs {need}')
+            if a.get('loading') != 'lazy':
+                self.problems.append(f'<img src="{src[:60]}"> needs loading="lazy"')
+        elif tag in ('style', 'iframe', 'object', 'embed'):
+            self.problems.append(f'<{tag}> is not allowed')
+        if 'style' in a:
+            self.problems.append(f'inline style on <{tag}>')
+        if any((k.startswith('on') for k in a)):
+            self.problems.append(f'event handler on <{tag}>')
+        if 'id' in a:
+            self.ids.append(a['id'])
+        for key in ('href', 'src'):
+            if key in a and a[key] is not None:
+                self.hrefs.append(a[key])
+        if tag == 'meta' and a.get('name') == 'robots' and ('noindex' in (a.get('content') or '')):
+            self.robots = True
+        if tag == 'h1':
+            self.h1 += 1
+        if tag == 'main':
+            self.mains += 1
+
+class SourceLines(HTMLParser):
+    """Which of the wanted element ids contain a "Sources:" line (span.tip-src) or a Sources disclosure
+    (details.sources, whose summary starts "Sources") with at least one link."""
+    VOID = {'area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'link', 'meta', 'source', 'track', 'wbr'}
+
+    def __init__(self, wanted: list[str]) -> None:
+        super().__init__(convert_charrefs=True)
+        self.wanted = set(wanted)
+        self.stack: list[str | None] = []
+        self.sourced: set[str] = set()
+        self.src_depth = 0
+        self.src_text = ''
+        self.src_links = 0
+        self.src_lead = 'Sources:'
+
+    def handle_starttag(self, tag, attrs):
+        a = dict(attrs)
+        if self.src_depth and tag == 'a':
+            self.src_links += 1
+        if tag in self.VOID:
+            return
+        self.stack.append(a.get('id') if a.get('id') in self.wanted else None)
+        classes = (a.get('class') or '').split()
+        if (tag == 'span' and 'tip-src' in classes or (tag == 'details' and 'sources' in classes)) and (not self.src_depth):
+            self.src_depth, self.src_text, self.src_links = (len(self.stack), '', 0)
+            self.src_lead = 'Sources' if tag == 'details' else 'Sources:'
+
+    def handle_data(self, data):
+        if self.src_depth:
+            self.src_text += data
+
+    def handle_endtag(self, tag):
+        if tag in self.VOID or not self.stack:
+            return
+        if self.src_depth == len(self.stack):
+            if self.src_text.strip().startswith(self.src_lead) and self.src_links:
+                self.sourced.update((i for i in self.stack if i))
+            self.src_depth = 0
+        self.stack.pop()
+
+PERMALINK_LABEL = 'Link to this section: '
+
+class HeadingScan(HTMLParser):
+    """Every h2 and h3 with an id, for the section links ("#" after the heading text).
+
+    For each heading: where its closing tag starts, the link target (the id of the enclosing
+    element that the heading labels via aria-labelledby, so links stay #upload rather than
+    #upload-h; otherwise the heading's own id), its text, whether it is left out (visually
+    hidden, or data-permalink="no" for headings that only make sense with My stack picks),
+    and the section links found inside it. Links outside any linked heading are listed too."""
+    VOID = SourceLines.VOID
+    SKIP_TEXT = {'vh', 'soon-tag', 'permalink'}
+
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=True)
+        self.stack: list[tuple[str, str | None, str | None]] = []
+        self.headings: list[dict] = []
+        self.cur: dict | None = None
+        self.skip_depth = 0
+        self.stray: list[str] = []
+
+    def handle_starttag(self, tag, attrs):
+        a = dict(attrs)
+        classes = (a.get('class') or '').split()
+        if tag == 'a' and 'permalink' in classes:
+            if self.cur is not None and (not self.cur['excluded']):
+                self.cur['links'].append((a.get('href'), a.get('aria-label') or ''))
+            else:
+                self.stray.append(a.get('href') or '')
+        if tag in ('h2', 'h3') and a.get('id'):
+            hid = a['id']
+            target = next((i for _, i, lab in reversed(self.stack) if i and lab == hid), hid)
+            self.cur = {'tag': tag, 'id': hid, 'target': target, 'text': '', 'links': [], 'end': None, 'excluded': 'vh' in classes or a.get('data-permalink') == 'no'}
+        if tag in self.VOID:
+            return
+        self.stack.append((tag, a.get('id'), a.get('aria-labelledby')))
+        if self.cur is not None and (self.skip_depth or self.SKIP_TEXT & set(classes)):
+            self.skip_depth += 1
+
+    def handle_data(self, data):
+        if self.cur is not None and (not self.skip_depth):
+            self.cur['text'] += data
+
+    def handle_endtag(self, tag):
+        if tag in self.VOID or not self.stack:
+            return
+        if self.skip_depth:
+            self.skip_depth -= 1
+        if self.cur is not None and tag == self.cur['tag']:
+            self.cur['end'] = self.getpos()
+            self.cur['text'] = ' '.join(self.cur['text'].split())
+            self.headings.append(self.cur)
+            self.cur = None
+        self.stack.pop()
+
+def add_permalinks(body: str) -> str:
+    scan = HeadingScan()
+    scan.feed(body)
+    scan.close()
+    line_starts = [0]
+    for line in body.splitlines(keepends=True):
+        line_starts.append(line_starts[-1] + len(line))
+    out, last = ([], 0)
+    for h in scan.headings:
+        if h['excluded'] or h['links']:
+            continue
+        pos = line_starts[h['end'][0] - 1] + h['end'][1]
+        label = html.escape(PERMALINK_LABEL + h['text'])
+        out.append(body[last:pos].rstrip())
+        out.append(f'''&nbsp;<a class="permalink" href="#{h['target']}" aria-label="{label}">#</a>''')
+        last = pos
+    out.append(body[last:])
+    return ''.join(out)
+
+def permalink_problems(name: str, text: str) -> list[str]:
+    scan = HeadingScan()
+    scan.feed(text)
+    scan.close()
+    found = []
+    targets = []
+    for h in scan.headings:
+        if h['excluded']:
+            continue
+        if len(h['links']) != 1:
+            found.append(f"{name}: heading #{h['id']} has {len(h['links'])} section links (needs exactly one)")
+            continue
+        href, label = h['links'][0]
+        if href != f"#{h['target']}":
+            found.append(f"{name}: heading #{h['id']}: section link goes to {href}, expected #{h['target']}")
+        if label != PERMALINK_LABEL + h['text'] or not h['text']:
+            found.append(f"{name}: heading #{h['id']}: section link label {label!r} doesn't match the heading")
+        targets.append(href)
+    for href in scan.stray:
+        found.append(f'{name}: section link {href} outside a linked heading')
+    for dup in sorted({t for t in targets if targets.count(t) > 1}):
+        found.append(f'{name}: two section links to {dup}')
+    return found
+
+def calc_table_html(m: dict) -> str:
+    t = m['table']
+    head = ''.join((f'<th scope="col">{h} h</th>' for h in t['hours']))
+    rows = []
+    for v in t['video_mbps']:
+        for i, mode in enumerate(('single', 'bonded')):
+            sizes = [datause.fmt_size(datause.data_use(m, h, v, t['audio_kbps'], mode, t['links'], t['loss_pct'])['total'], m) for h in t['hours']]
+            if not all((x.endswith(' GB') for x in sizes)):
+                raise SystemExit('data-use table: every cell must be in GB (the unit is in the caption)')
+            cells = ''.join((f'<td data-video="{v}" data-hours="{h}" data-mode="{mode}">{x[:-3]}</td>' for h, x in zip(t['hours'], sizes)))
+            lead = f'<th scope="row" rowspan="2">{v} Mbit/s</th>' if i == 0 else ''
+            how = 'One connection' if mode == 'single' else f"Bonded, {t['links']} links"
+            rows.append(f'<tr>{lead}<td>{how}</td>{cells}</tr>')
+    return f"""<table class="plans-table calc-table" id="data-table">\n          <caption>GB for a whole stream, upload and download together, with {t['audio_kbps']} kbit/s audio and {t['loss_pct']} % loss</caption>\n          <thead><tr><th scope="col">Video</th><th scope="col">Sent over</th>{head}</tr></thead>\n          <tbody>\n            """ + '\n            '.join(rows) + '\n          </tbody>\n        </table>'
+
+def calc_ui_html(m: dict) -> str:
+    d, lim = (m['defaults'], m['limits'])
+    model = html.escape(json.dumps({k: v for k, v in m.items() if k != 'about'}, separators=(',', ':'), ensure_ascii=False))
+    modes = [('single', 'One connection', 'the whole stream over one network'), ('bonded', 'Bonded (SRTLA)', 'the stream is split over your links'), ('redundant', 'Redundant', 'every link sends every packet, as in Speedify’s Redundant Mode')]
+    radios = '\n'.join((f'''            <p class="calc-radio"><input type="radio" name="calc-mode" id="calc-mode-{k}" value="{k}"{(' checked' if k == d['mode'] else '')}><label for="calc-mode-{k}"><strong>{label}</strong> <span>{hint}</span></label></p>''' for k, label, hint in modes))
+    parts = [('media', 'Video and audio', 'your bitrates × time ÷ 8 bits per byte'), ('packing', 'Packing (MPEG-TS)', '4 bytes in every 188, plus about 64 kbit/s'), ('headers', 'Packet headers', '44 bytes per 1,316 bytes of stream'), ('resends', 'Resent packets', 'SRT sends lost packets again'), ('control', 'Replies', 'acknowledgements and loss reports, both ways'), ('keepalives', 'Keepalives', 'SRTLA, once a second per link')]
+    rows = '\n'.join((f'              <tr id="calc-row-{k}"><th scope="row">+ {label} <span>{how}</span></th><td id="calc-part-{k}"></td></tr>'.replace('+ Video', 'Video') for k, label, how in parts))
+    return f'''<div class="calc" id="calc" data-model="{model}" hidden>\n          <form class="calc-form" id="calc-form" aria-label="Data calculator">\n            <div class="calc-grid">\n              <p class="calc-field"><label for="calc-dur">Stream length</label><span class="calc-in"><input type="text" id="calc-dur" inputmode="decimal" autocomplete="off" value="{d['hours']:g}" size="5"><select id="calc-dur-unit" aria-label="Unit for stream length"><option value="h" selected>hours</option><option value="min">minutes</option></select></span></p>\n              <p class="calc-field"><label for="calc-video">Video bitrate</label><span class="calc-in"><input type="text" id="calc-video" inputmode="decimal" autocomplete="off" value="{d['video_mbps']:g}" size="5"><span class="calc-unit" aria-hidden="true">Mbit/s</span></span></p>\n              <p class="calc-field"><label for="calc-audio">Audio bitrate</label><span class="calc-in"><input type="text" id="calc-audio" inputmode="decimal" autocomplete="off" value="{d['audio_kbps']:g}" size="5"><span class="calc-unit" aria-hidden="true">kbit/s</span></span></p>\n            </div>\n            <fieldset class="calc-modes">\n              <legend>How you send it</legend>\n{radios}\n            </fieldset>\n            <div class="calc-grid">\n              <p class="calc-field" id="calc-links-row"><label for="calc-links">Links</label><span class="calc-in"><input type="text" id="calc-links" inputmode="numeric" autocomplete="off" value="{d['links']}" size="3"><span class="calc-unit" aria-hidden="true">{lim['links_min']}–{lim['links_max']}</span></span></p>\n              <p class="calc-field"><label for="calc-loss">Packet loss</label><span class="calc-in"><input type="text" id="calc-loss" inputmode="decimal" autocomplete="off" value="{d['loss_pct']:g}" size="3" aria-describedby="calc-loss-hint"><span class="calc-unit" aria-hidden="true">%</span></span></p>\n            </div>\n            <p class="calc-hint" id="calc-loss-hint">SRT sends every lost packet again while there's still time within its latency setting. {d['loss_pct']:g} % is only an example. Your app's statistics show your own loss.</p>\n            <p class="calc-check"><input type="checkbox" id="calc-rec"><label for="calc-rec">Also record on the phone or box</label></p>\n            <p class="calc-field" id="calc-rec-row" hidden><label for="calc-rec-video">Recording video bitrate <span class="calc-opt">if it differs</span></label><span class="calc-in"><input type="text" id="calc-rec-video" inputmode="decimal" autocomplete="off" size="5" placeholder="{d['video_mbps']:g}"><span class="calc-unit" aria-hidden="true">Mbit/s</span></span></p>\n          </form>\n          <div class="calc-out" id="calc-out">\n            <p class="calc-total"><span class="calc-big" id="calc-total"></span> <span id="calc-total-what">of mobile data</span></p>\n            <p class="calc-line" id="calc-per-link"></p>\n            <p class="calc-line" id="calc-dir"></p>\n            <p class="calc-line" id="calc-rec-out" hidden></p>\n            <p class="calc-error" id="calc-error" hidden></p>\n            <p class="vh" id="calc-status" role="status"></p>\n            <details class="more fold calc-more" id="arithmetic" open><summary>The arithmetic</summary>\n            <table class="calc-math" id="calc-math">\n              <caption class="vh">The arithmetic</caption>\n              <tbody>\n{rows}\n              <tr class="calc-sum"><th scope="row">= Data used</th><td id="calc-part-total"></td></tr>\n              </tbody>\n            </table>\n            </details>\n          </div>\n        </div>\n        <p class="calc-nojs" id="calc-nojs">The calculator needs JavaScript. The table above has common cases.</p>'''
+
+def fill_calc(body: str, m: dict) -> str:
+    return body.replace('<!--calc:table-->', calc_table_html(m)).replace('<!--calc:ui-->', calc_ui_html(m))
+
+KICKER_BEFORE_HEADING = re.compile('<(p|span|div|small)\\b[^>]*\\bclass="[^"]*\\b(label|kicker|eyebrow)\\b[^"]*"[^>]*>(?:(?!</\\1>).){0,300}</\\1>\\s*(?:<h[1-6]\\b|<p\\b[^>]*\\bclass="[^"]*\\b(?:lede|mission-line|sum)\\b)', re.S)
+
+HEADING_AS_KICKER = re.compile('<h[1-6]\\b[^>]*\\bclass="[^"]*\\b(label|kicker|eyebrow)\\b', re.S)
+
+def kicker_problems(name: str, text: str) -> list[str]:
+    found = []
+    for m in KICKER_BEFORE_HEADING.finditer(text):
+        snippet = re.sub('<[^>]+>', '', m.group(0))[:60].strip()
+        found.append(f'{name}: kicker line above a heading: {snippet!r}')
+    for m in HEADING_AS_KICKER.finditer(text):
+        found.append(f'{name}: heading styled as a kicker label')
+    return found
+
+def check(pages: dict[str, str]) -> list[str]:
+    problems: list[str] = []
+    for name, text in pages.items():
+        problems += kicker_problems(name, text)
+        problems += permalink_problems(name, text)
+        if 'what-fits' in text:
+            problems.append(f'{name}: leftover reference to what-fits (renamed to how-to-irl.html)')
+        for tag in re.findall('<details\\b[^>]*\\bclass="[^"]*\\bfold\\b[^"]*"[^>]*>', text):
+            if not re.search('\\sopen(?=[\\s>])', tag):
+                problems.append(f'{name}: a disclosure (details.fold) must be open in the HTML; site.js closes it')
+        if text.count('<details') != text.count('<summary>') + text.count('<summary '):
+            problems.append(f'{name}: every <details> needs a <summary>')
+        for body in re.findall('<script\\b[^>]*>(.*?)</script>', text, re.S | re.I):
+            if body.strip():
+                problems.append(f'{name}: inline script content is not allowed')
+    parsed: dict[str, Collector] = {}
+    for name, text in pages.items():
+        c = Collector()
+        c.feed(text)
+        parsed[name] = c
+        for anchor in STABLE_ANCHORS.get(name, []) + ([w['id'] for w in WORDS_FOR_CHECK] if name == 'glossary.html' else []) + (STANDARD_IDS if name == 'standards.html' else []):
+            if anchor not in c.ids:
+                problems.append(f'{name}: stable anchor #{anchor} is missing (outreach templates link to it)')
+        for p in c.problems:
+            problems.append(f'{name}: {p}')
+        if (APEX or SITE) and name not in APEX_KEEP_NOINDEX:
+            if c.robots:
+                problems.append(f"{name}: robots noindex in the {('apex' if APEX else SITE)} build (only moved and unlisted pages keep it)")
+        elif not c.robots:
+            problems.append(f'{name}: robots noindex missing')
+        if c.h1 != 1:
+            problems.append(f'{name}: {c.h1} h1 elements')
+        if c.mains != 1:
+            problems.append(f'{name}: {c.mains} main elements')
+        dupes = {i for i in c.ids if c.ids.count(i) > 1}
+        if dupes:
+            problems.append(f'{name}: duplicate ids {sorted(dupes)}')
+    for name, ids in {**SOURCED_SECTIONS, 'standards.html': STANDARDS_SOURCED}.items():
+        if name not in pages:
+            continue
+        s = SourceLines(ids)
+        s.feed(pages[name])
+        for missing in [i for i in ids if i not in s.sourced]:
+            problems.append(f'{name}: section #{missing} has no Sources line (span.tip-src with a link)')
+    if 'standards.html' in pages:
+        problems += compare_problems(pages['standards.html'])
+    for name in NO_CARRIERS & pages.keys():
+        main_text = html.unescape(re.sub('<[^>]+>', ' ', pages[name].split('<main id="main"', 1)[-1].split('</main>', 1)[0]))
+        for m in CARRIER.finditer(main_text):
+            problems.append(f'{name}: names a carrier or seller ({m.group(0)!r}); this page is a guideline without examples')
+    for name in NO_PRICES & pages.keys():
+        main_text = pages[name].split('<main id="main"', 1)[-1].split('</main>', 1)[0]
+        for m in PRICE.finditer(re.sub('<[^>]+>', ' ', main_text)):
+            problems.append(f'{name}: looks like a price ({m.group(0)!r}); plan prices stay off this page')
+    for href in [h for _, h, _ in NAV + FOOT_PAGES]:
+        if href in UNLISTED_PAGES:
+            problems.append(f'{href}: unlisted page is in the nav or footer')
+    problems += moved_nginx_problems()
+    for old, new in MOVED_PAGES.items():
+        if old not in pages:
+            problems.append(f'{old}: moved page is missing (old links to it must keep working)')
+        elif f'data-moved="{new}"' not in pages[old] or f'url={new}"' not in pages[old]:
+            problems.append(f"{old}: must send visitors on to {new} (metadata 'moved: {new}')")
+    for name, c in parsed.items():
+        for href in c.hrefs:
+            target = href.partition('#')[0]
+            if target in MOVED_PAGES and target != name:
+                problems.append(f'{name}: links to {target}, which moved to {MOVED_PAGES[target]}')
+    for href in [h for _, h, _ in NAV + FOOT_PAGES]:
+        if href in MOVED_PAGES:
+            problems.append(f'{href}: moved page is in the nav or footer')
+    in_footer = {h for _, h, _ in FOOT_PAGES} | {h for h, _, _ in LEGAL}
+    for name in pages:
+        if name not in MOVED_PAGES and name not in UNLISTED_PAGES and (name not in in_footer):
+            problems.append(f"{name}: not in the footer's page list (FOOT_GROUPS); every page must be findable there")
+    for name, c in parsed.items():
+        for href in c.hrefs:
+            target = href.partition('#')[0]
+            if target in UNLISTED_PAGES and target != name:
+                problems.append(f"{name}: links to the unlisted page {target} (it stays unlinked until it's published)")
+    for name, c in parsed.items():
+        for href in c.hrefs:
+            if re.match('^(https?:|mailto:|tel:)', href):
+                if href.startswith('http:'):
+                    problems.append(f'{name}: plain http link {href}')
+                continue
+            path, _, frag = href.partition('#')
+            target = name if path == '' else path
+            if target not in parsed:
+                if not (OUT / target).is_file():
+                    problems.append(f'{name}: broken link {href}')
+                continue
+            if frag and frag not in parsed[target].ids:
+                problems.append(f'{name}: missing anchor {href}')
+    return problems
+NEXT = True
