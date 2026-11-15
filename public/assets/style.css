@@ -900,15 +900,17 @@ input.has-clear::-webkit-search-cancel-button { -webkit-appearance: none; appear
 @media print { .step-bar { display: none !important; } }
 
 
+.word-tools { display: grid; gap: var(--s1); margin: 0 0 var(--s3); padding: var(--s2) 0; border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); }
+.word-tools[hidden], .glossary .entry[hidden], .toc li[hidden] { display: none !important; }
+.word-count { margin: 0; font-size: var(--t-small); color: var(--muted); }
 /* Glossary search, on the shared directory controls: the search full width, its label row carrying a small
    "12 / 31" on the right. No filters, so the search's own clear button is the only reset. The entries' own
    top rules separate it from the list, so it has no line below. */
-.word-tools { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: baseline; gap: 6px 16px; margin: 0 0 var(--s1); padding: var(--s2) 0 0; border-top: 1px solid var(--rule); }
-.word-tools .word-search { display: contents; }
-.word-tools .word-search label { grid-column: 1; grid-row: 1; }
-.word-tools .word-search .search-box, .word-tools .word-search > input { grid-column: 1 / -1; grid-row: 2; max-width: none; }
-.word-tools[hidden], .glossary .entry[hidden], .toc li[hidden] { display: none !important; }
-.word-count { grid-column: 2; grid-row: 1; margin: 0; font: 500 var(--t-meta)/1.2 var(--mono); color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.gloss-tools { grid-template-columns: minmax(0, 1fr) auto; align-items: baseline; gap: 6px 16px; margin-bottom: var(--s1); padding-bottom: 0; border-bottom: 0; }
+.gloss-tools .word-search { display: contents; }
+.gloss-tools .word-search label { grid-column: 1; grid-row: 1; }
+.gloss-tools .word-search .search-box, .gloss-tools .word-search > input { grid-column: 1 / -1; grid-row: 2; max-width: none; }
+.gloss-tools .word-count { grid-column: 2; grid-row: 1; font: 500 var(--t-meta)/1.2 var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
 @media print { .word-tools { display: none !important; } }
 /* A deep-linked word lights up for a moment. */
 @keyframes word-landed { from { background-color: var(--sunk); } to { background-color: transparent; } }
