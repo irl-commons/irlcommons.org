@@ -60,7 +60,10 @@ NO_PRICES = {'data-plans.html', 'why-bonding.html'}
 
 PRICE = re.compile('[$€£]\\s?\\d|\\d\\s?(?:€|£|EUR\\b|USD\\b)|\\bper month\\b|/mo\\b', re.I)
 
-WORD_TEXT = {'en': {'also': 'Also called', 'all': 'All words', 'page': 'glossary.html'}}
+# Pages on this site that explain a word further. Shown only inside the closed "More" disclosure.
+WORD_LINKS = {'data-cap': ('How much data a stream uses', 'data-plans.html#data'), 'upload-speed': ('Why upload matters most', 'data-plans.html#upload'), 'bonding': ('Why more than one network?', 'why-bonding.html'), 'srtla': ('How bonding splits a stream', 'why-bonding.html#pieces')}
+
+WORD_TEXT = {'en': {'also': 'Also called', 'more': 'More', 'about': 'about', 'all': 'All words', 'page': 'glossary.html'}}
 
 def loc(w: dict, lang: str, key: str) -> str:
     if lang == 'en':
@@ -73,7 +76,7 @@ def word_names(w: dict) -> list[str]:
     return [w['term'], *w.get('also_called', []), *w.get('search_terms', []), *([n['label']] if n else []), *(a['term'] for a in n.get('alternatives', []))]
 
 def words_entries(words: list[dict], lang: str) -> str:
-    # The streamer glossary: the word, a plain explanation and its true synonyms. Nothing else.
+    # The streamer glossary: the word, a plain explanation and its true synonyms. Further reading sits in a closed "More".
     t = WORD_TEXT[lang]
     names = {w['id']: loc(w, lang, 'term') for w in words}
     out = []
@@ -83,6 +86,14 @@ def words_entries(words: list[dict], lang: str) -> str:
         rows = [f'<dd class="plain">{html.escape(plain, quote=False)}</dd>']
         if w.get('also_called'):
             rows.append(f"""<dd class="aka"><strong>{t['also']}:</strong> {html.escape(', '.join(w['also_called']), quote=False)}</dd>""")
+        links = []
+        if w['id'] in WORD_LINKS:
+            label, href = WORD_LINKS[w['id']]
+            links.append(f'<li><a href="{href}">{html.escape(label, quote=False)}</a></li>')
+        links += [f'<li>{guide_link(g)}</li>' for g in guides_for('words', w['id'])]
+        if links:
+            # Closed by default: the main glossary stays word, explanation and "Also called".
+            rows.append(f'''<dd class="word-more"><details><summary>{t['more']}<span class="vh"> {t['about']} {html.escape(term, quote=False)}</span></summary><ul>{''.join(links)}</ul></details></dd>''')
         rows.append(f'<dd class="edit-line">{edit_icon("words", w["id"], term)}</dd>')
         hay = ' '.join([*word_names(w), plain]).lower()
         out.append(f'''        <div class="entry" id="{w['id']}" data-search="{html.escape(hay)}">\n          <dt>{html.escape(term, quote=False)}</dt>\n          ''' + '\n          '.join(rows) + '\n        </div>')

@@ -1491,3 +1491,14 @@ details.sources > .tip-src { display: block; margin-top: 0; margin-bottom: 8px; 
 .nm-key dd { margin: 0; color: var(--muted); }
 @media (min-width: 560px) { .nm-key div { grid-template-columns: 10em minmax(0, 1fr); column-gap: 16px; } }
 .nm-how { max-width: var(--measure); font-size: var(--t-small); }
+
+/* Glossary: further reading per word, folded into one quiet "More" that starts closed. */
+.glossary .word-more { margin: 0; }
+.glossary .word-more > details > summary { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; font-size: var(--t-meta); color: var(--muted); cursor: pointer; list-style: none; }
+.glossary .word-more > details > summary::-webkit-details-marker { display: none; }
+.glossary .word-more > details > summary::after { content: ""; width: 6px; height: 6px; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: translateY(-2px) rotate(45deg); }
+.glossary .word-more > details[open] > summary::after { transform: translateY(1px) rotate(-135deg); }
+.glossary .word-more > details > summary:hover, .glossary .word-more > details > summary:focus-visible { color: var(--fg); }
+.glossary .word-more ul { margin: 4px 0 6px; padding-left: 1.1em; font-size: var(--t-small); line-height: 1.45; }
+.glossary .word-more li { margin-bottom: 6px; overflow-wrap: anywhere; }
+.glossary .word-more .guide-meta { color: var(--muted); }
