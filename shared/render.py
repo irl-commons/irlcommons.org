@@ -1016,11 +1016,11 @@ def standard_users(x: dict, by_id: dict[str, dict], on_links: set[str]) -> tuple
     return (users + [html.escape(n, quote=False) for n in x['other_users']], itself)
 
 # ---------- Help: the guide directory (Index B) ----------
-KIND_LABEL = {'article': 'Article', 'video': 'Video'}
+KIND_LABEL = {'article': 'Article', 'video': 'Video', 'docs': 'Docs'}
 
 def help_filters(guides: list[dict]) -> list[tuple[str, str, str, str, int]]:
     out = [('part', f'guides-{k}', label, f'[data-p~="{k}"]', sum((1 for g in guides if k in g['part']))) for k, label, _ in PARTS]
-    out += [('kind', f'kind-{k}', label, f'[data-k="{k}"]', sum((1 for g in guides if g['kind'] == k))) for k, label in (('article', 'Articles'), ('video', 'Videos'))]
+    out += [('kind', f'kind-{k}', label, f'[data-k="{k}"]', sum((1 for g in guides if g['kind'] == k))) for k, label in (('article', 'Articles'), ('video', 'Videos'), ('docs', 'Docs'))]
     covered = sorted({c for g in guides for c in g['covers']}, key=lambda c: SERVICES_BY_ID[c]['name'].lower())
     out += [('product', f'for-{c}', SERVICES_BY_ID[c]['name'], f'[data-c~="{c}"]', sum((1 for g in guides if c in g['covers']))) for c in covered]
     return [f for f in out if f[4]]
@@ -1069,7 +1069,7 @@ def help_index_html(guides: list[dict]) -> str:
                     for grp, fid, label, _, n in filters if grp == 'kind')
     products = ''.join(f'<li><a class="fchip" href="#{fid}" data-f="{fid}">{esc(label)} <span class="sn">{n}</span></a></li>'
                        for grp, fid, label, _, n in filters if grp == 'product')
-    notes = ''.join((f'<p class="fnote" data-f="{fid}">{esc(label)}: {n} guide{"s" if n != 1 else ""}. <a href="#guides">Show all</a></p>' for _, fid, label, _, n in filters))
+    notes = ''.join((f'<p class="fnote" data-f="{fid}">{esc(label)}: {n} guide{"s" if n != 1 else ""}. <a href="#guides" class="filter-reset">Clear filters</a></p>' for _, fid, label, _, n in filters))
     titles = [g['title_display'] for g in guides]
     rows = '\n        '.join((guide_row(g, titles.count(g['title_display']) > 1) for g in guides_in_order(guides)))
     total = len(guides)
@@ -1088,7 +1088,6 @@ def help_index_html(guides: list[dict]) -> str:
       <ul class="ix-rows">
         {rows}
       </ul>
-      <p class="no-words" id="dir-none" hidden>No guide matches that. <button type="button" class="btn" id="dir-none-reset">Show all</button></p>
     </section>"""
 
 def help_filters_css(guides: list[dict]) -> str:

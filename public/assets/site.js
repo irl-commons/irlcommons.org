@@ -243,7 +243,7 @@
         if (finding && list && !empty && !list.open) { list.open = true; opened.push(list); }
       });
       if (!finding) { opened.forEach(function (d) { d.open = false; }); opened = []; }
-      count.textContent = standardCount(shown, entries.length);
+      count.textContent = shown ? standardCount(shown, entries.length) : "";
       none.hidden = shown > 0;
     }
     q.addEventListener("input", apply);
@@ -255,7 +255,7 @@
   function initClear() {
     var SVG = "http://www.w3.org/2000/svg";
     Array.prototype.forEach.call(document.querySelectorAll('input[type="search"]'), function (input) {
-      if (input.classList.contains("has-clear")) return;
+      if (input.classList.contains("has-clear") || input.id === "dir-q" || input.id === "std-q") return;
       var box = document.createElement("span");
       box.className = "search-box";
       input.parentNode.insertBefore(box, input);
@@ -589,7 +589,6 @@
     var search = document.getElementById("dir-search");
     var q = document.getElementById("dir-q");
     var count = document.getElementById("dir-count");
-    var none = document.getElementById("dir-none");
     var prod = document.getElementById("by-product");
     var cur = prod ? prod.querySelector(".fcur") : null;
     var rows = Array.prototype.slice.call(page.querySelectorAll(".ix-row"));
@@ -625,16 +624,16 @@
       if (cur) cur.textContent = st.for && known["for-" + st.for] ? known["for-" + st.for].firstChild.textContent.trim() : "";
       var fsum = prod ? prod.querySelector(".fsum") : null;
       if (fsum) fsum.hidden = !!(st.for && known["for-" + st.for]);
+      if (typeof selects !== "undefined") Object.keys(selects).forEach(function (key) { selects[key].value = st[key]; });
       var filtered = !!(st.part || st.kind || st.for || st.q.trim());
       count.textContent = "";
       count.appendChild(document.createTextNode(countText(shown, rows.length, filtered)));
       if (filtered) {
         var b = document.createElement("button");
-        b.type = "button"; b.className = "btn"; b.textContent = "Clear filters";
+        b.type = "button"; b.className = "filter-reset"; b.textContent = "Clear filters";
         b.addEventListener("click", function () { reset(); q.focus(); });
         count.appendChild(b);
       }
-      none.hidden = shown > 0;
       if (write) syncUrl();
     }
     function reset() { take({}); apply(true); }
@@ -643,6 +642,26 @@
       if (row && row.classList.contains("ix-row")) { var d = row.querySelector(".ix-more"); if (d) d.open = true; }
     }
 
+    var filters = document.getElementById("ix-filters");
+    filters.insertBefore(search, filters.firstChild);
+    var controls = document.createElement("div");
+    controls.className = "filter-controls";
+    var selects = {};
+    [["part", "Part", "guides-", "All parts"], ["for", "Product", "for-", "All products"], ["kind", "Kind", "kind-", "All kinds"]].forEach(function (g) {
+      var label = document.createElement("label");
+      label.className = "filter-field";
+      label.textContent = g[1];
+      var select = document.createElement("select");
+      select.add(new Option(g[3], ""));
+      links.forEach(function (a) {
+        var id = a.getAttribute("data-f");
+        if (id.indexOf(g[2]) === 0) select.add(new Option(a.textContent.replace(/\s+\d+\s*$/, "").trim(), id.slice(g[2].length)));
+      });
+      select.addEventListener("change", function () { st[g[0]] = select.value; apply(true); });
+      selects[g[0]] = select;
+      label.appendChild(select); controls.appendChild(label);
+    });
+    filters.appendChild(controls);
     page.classList.add("ix-js");
     page.querySelector(".fnote-all").hidden = true;
     count.hidden = false;
@@ -656,7 +675,6 @@
       });
     });
     q.addEventListener("input", function () { st.q = q.value; apply(true); });
-    none.querySelector("button").addEventListener("click", function () { reset(); q.focus(); });
     // A click anywhere on a row that isn't a link opens or closes its details, like the whole-row disclosure of Index B.
     rows.forEach(function (li) {
       li.addEventListener("click", function (ev) {
