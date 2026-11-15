@@ -43,7 +43,7 @@ test('Strict CSP: one first-party script, no inline executable code or third-par
 });
 test('Data entries offer text-field-only edit forms',()=>{
  for(const [name,text] of docs){
-  if(['glossary.html','help.html','links.html','standards.html'].includes(name))assert.ok(text.includes('Suggest an edit'),name);
+  if(['glossary.html','help.html','links.html','existing-formats.html'].includes(name))assert.ok(text.includes('Suggest an edit'),name);
   for(const m of text.matchAll(/href="([^\"]*template=edit-entry.yml[^\"]*)"/g)){
    const url=new URL(decode(m[1]));for(const key of url.searchParams.keys())assert.ok(['template','title','entry','source','changes'].includes(key),key);
   }
@@ -56,4 +56,11 @@ test('HTML validates',async()=>{
 test('Sitemap covers the complete page list and schemas retain canonical ids',async()=>{
  const map=await readFile('dist/sitemap.xml','utf8');assert.equal((map.match(/<loc>/g)||[]).length,config.pages.length);
  if(config.domain==='irlcommons.org')for(const repo of ['stream-status','stream-session']){const s=JSON.parse(await readFile(`dist/schemas/${repo}/v0.json`,'utf8'));assert.equal(s.$id,`https://irlcommons.org/schemas/${repo}/v0.json`);}
+});
+test('The old standards address points to Existing formats',async()=>{
+ if(config.domain!=='irlcommons.org')return;
+ const text=await readFile('dist/standards.html','utf8');
+ assert.ok(text.includes('http-equiv="refresh" content="0; url=existing-formats.html"'));
+ assert.ok(text.includes('rel="canonical" href="https://irlcommons.org/existing-formats.html"'));
+ assert.ok(docs.has('existing-formats.html')&&!docs.has('standards.html'));
 });

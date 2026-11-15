@@ -1,6 +1,6 @@
 # Contributing
 
-I welcome fixes to the pages, layout and accessibility. Run `npm ci`, then
+Fixes to the pages, layout and accessibility are welcome. Run `npm ci`, then
 `npm run check` before opening a pull request. Explain what changes for readers.
 
 The glossary, services, guides and standards belong to
