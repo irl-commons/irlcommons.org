@@ -1532,4 +1532,4 @@ details.sources > .tip-src { display: block; margin-top: 0; margin-bottom: 8px; 
 .filter-field select { font-weight: 400; }
 
 .std-tools { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
-.std-tools .word-count { margin: 0; }
+.std-tools .word-count { margin: 0; grid-area: auto; }
