@@ -19,7 +19,7 @@ the dependency pin and lockfile together, then run all checks.
 
 `shared/` is the same versioned folder in both site repositories: rendering
 functions, calculator formula, thumbnail attribution and the data-use model.
-Shared version: 1.1.0. Changes should be copied to the sibling site in the same
+Shared version: 1.2.0. Changes should be copied to the sibling site in the same
 review. Vendoring this small folder keeps either repository independently
 buildable without a third package release. Styles and self-hosted fonts are
 identical; one first-party script adds theme choice, search and the calculator.

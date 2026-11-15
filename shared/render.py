@@ -60,39 +60,31 @@ NO_PRICES = {'data-plans.html', 'why-bonding.html'}
 
 PRICE = re.compile('[$€£]\\s?\\d|\\d\\s?(?:€|£|EUR\\b|USD\\b)|\\bper month\\b|/mo\\b', re.I)
 
-WORD_LINKS = {'data-cap': ('How much data a stream uses', 'data-plans.html#data'), 'upload-speed': ('Why upload matters most', 'data-plans.html#upload'), 'bonding': ('Why more than one network?', 'why-bonding.html'), 'srtla': ('How bonding splits a stream', 'why-bonding.html#pieces')}
-
-WORD_TEXT = {'en': {'also': 'Also called', 'when': 'When it comes up', 'related': 'Related', 'all': 'All words', 'page': 'glossary.html'}}
+WORD_TEXT = {'en': {'also': 'Also called', 'all': 'All words', 'page': 'glossary.html'}}
 
 def loc(w: dict, lang: str, key: str) -> str:
     if lang == 'en':
         return w.get(key, '')
     return w.get('l10n', {}).get(lang, {}).get(key, '')
 
+def word_names(w: dict) -> list[str]:
+    """Every name a reader might search for. Only `also_called` is ever shown as a name."""
+    n = w.get('naming') or {}
+    return [w['term'], *w.get('also_called', []), *w.get('search_terms', []), *([n['label']] if n else []), *(a['term'] for a in n.get('alternatives', []))]
+
 def words_entries(words: list[dict], lang: str) -> str:
+    # The streamer glossary: the word, a plain explanation and its true synonyms. Nothing else (A310).
     t = WORD_TEXT[lang]
     names = {w['id']: loc(w, lang, 'term') for w in words}
     out = []
     for w in sorted(words, key=lambda w: names[w['id']].lower()):
         term = names[w['id']]
         plain = loc(w, lang, 'plain')
-        when = loc(w, lang, 'heard_when')
         rows = [f'<dd class="plain">{html.escape(plain, quote=False)}</dd>']
-        if w.get('aliases'):
-            rows.append(f"""<dd class="aka"><strong>{t['also']}:</strong> {html.escape(', '.join(w['aliases']), quote=False)}</dd>""")
-        if when:
-            rows.append(f"""<dd class="when"><strong>{t['when']}:</strong> {html.escape(when, quote=False)}</dd>""")
-        if w.get('related'):
-            rel = ', '.join((f'<a href="#{r}">{html.escape(names[r], quote=False)}</a>' for r in w['related']))
-            rows.append(f"""<dd class="rel"><strong>{t['related']}:</strong> {rel}</dd>""")
-        gs = guides_for('words', w['id'])
-        if gs:
-            rows.append(f'<dd class="rel guides"><strong>Guides:</strong> ' + '; '.join((guide_link(g) for g in gs)) + '</dd>')
-        if w['id'] in WORD_LINKS:
-            label, href = WORD_LINKS[w['id']]
-            rows.append(f'<dd class="rel"><strong>Read more:</strong> <a href="{href}">{label}</a></dd>')
+        if w.get('also_called'):
+            rows.append(f"""<dd class="aka"><strong>{t['also']}:</strong> {html.escape(', '.join(w['also_called']), quote=False)}</dd>""")
         rows.append(f'<dd class="edit-line">{edit_icon("words", w["id"], term)}</dd>')
-        hay = ' '.join([term, *w.get('aliases', []), plain]).lower()
+        hay = ' '.join([*word_names(w), plain]).lower()
         out.append(f'''        <div class="entry" id="{w['id']}" data-search="{html.escape(hay)}">\n          <dt>{html.escape(term, quote=False)}</dt>\n          ''' + '\n          '.join(rows) + '\n        </div>')
     return '\n'.join(out)
 
@@ -108,6 +100,58 @@ def words_core(words: list[dict]) -> str:
             continue
         rows.append(f"""        <div><dt><a href="glossary.html#{w['id']}">{html.escape(w['term'], quote=False)}</a></dt><dd>{html.escape(w['plain'], quote=False)}</dd></div>""")
     return '      <dl class="words">\n' + '\n'.join(rows) + '\n      </dl>\n      <p class="more-words"><a href="glossary.html">All words in the glossary <span class="arrow" aria-hidden="true">→</span></a></p>'
+
+# ---------- Words for app makers (irlcommons.org): the naming guide in irl-commons ----------
+NAMING_STATUS = {'also-used': 'Also used', 'narrower': 'Narrower', 'technical': 'Technical', 'ambiguous': 'Ambiguous here'}
+NAMING_CASE = {'sentence': 'Sentence case', 'proper': 'As a name', 'acronym': 'Capitals'}
+
+def label_href(wid: str) -> str:
+    from urllib.parse import urlencode
+    return EDIT_FORM + urlencode({'template': 'edit-entry.yml', 'title': f'Label: words/{wid}', 'entry': f'words/{wid}'})
+
+def naming_entry(w: dict) -> str:
+    e = lambda t: html.escape(t, quote=False)
+    n = w['naming']
+    wid = w['id']
+    status = 'Draft' if n['status'] == 'draft' else 'Reviewed'
+    facts = [('Glossary word', f'<a href="glossary.html#{wid}">{e(w["term"])}</a>')]
+    if n.get('short_label'):
+        facts.append(('Short form', e(n['short_label'])))
+    if n.get('plural'):
+        facts.append(('Plural', e(n['plural'])))
+    facts.append(('Written', NAMING_CASE[n['case']]))
+    rows = []
+    for a in n['alternatives']:
+        seen = ', '.join(a.get('seen_in', [])) or '–'
+        rows.append(f'''<tr><th scope="row">{e(a['term'])}</th><td data-label="Status"><span class="nm-st nm-{a['status']}">{NAMING_STATUS[a['status']]}</span></td>'''
+                    f'''<td data-label="About it">{e(a.get('why', 'Means the same thing.'))}</td><td data-label="Seen in"{' class="nm-empty"' if seen == '–' else ''}>{e(seen)}</td></tr>''')
+    table = (f'''<table class="nm-table"><caption>Other names</caption><thead><tr><th scope="col">Name</th><th scope="col">Status</th>'''
+             f'''<th scope="col">About it</th><th scope="col">Seen in</th></tr></thead><tbody>{''.join(rows)}</tbody></table>''') if rows else ''
+    ev = []
+    for x in n['evidence']:
+        flag = ' <span class="nm-unv">Unverified</span>' if x.get('unverified') else ''
+        ev.append(f'''<li><strong>{e(x['maker'])}</strong>{flag}: {e(x['note'])} <a href="{html.escape(x['url'])}">{e(short_url(x['url']))}</a> <span class="dated">Read {long_date(x['read_on'])}</span></li>''')
+    makers = len({x['maker'] for x in n['evidence']})
+    summary = f"Evidence: {len(n['evidence'])} {'page' if len(n['evidence']) == 1 else 'pages'} from {makers} {'maker' if makers == 1 else 'makers'}"
+    evidence = fold(summary, f'<ul class="nm-ev">{"".join(ev)}</ul>', 'nm-evidence') if ev else '<p class="nm-none">No evidence yet.</p>'
+    hay = ' '.join(word_names(w)).lower()
+    return (f'''    <section class="part nm" id="{wid}" aria-labelledby="{wid}-h" data-search="{html.escape(hay)}">\n'''
+            f'''      <h2 id="{wid}-h">{e(n['label'])} <span class="nm-badge nm-{n['status']}">{status}</span></h2>\n'''
+            f'''      <p class="nm-scope"><span class="nm-k">Use it for</span> {e(n['scope'])}</p>\n'''
+            f'''      <p class="nm-why">{e(n['why'])}</p>\n'''
+            f'''      <dl class="std-facts nm-facts">{''.join(f'<div><dt>{k}</dt><dd>{v}</dd></div>' for k, v in facts)}</dl>\n'''
+            f'''      {table}\n'''
+            f'''      <p class="nm-tr"><span class="nm-k">Translating</span> {e(n['translation_note'])}</p>\n'''
+            f'''      {evidence}\n'''
+            f'''      <p class="nm-propose"><a href="{html.escape(label_href(wid))}">Propose a different label</a></p>\n    </section>''')
+
+def fill_naming(body: str, words: list[dict]) -> str:
+    if '<!--naming:' not in body:
+        return body
+    named = sorted((w for w in words if w.get('naming')), key=lambda w: w['naming']['label'].lower())
+    toc = '\n      '.join(f'''<li><a href="#{w['id']}">{html.escape(w['naming']['label'], quote=False)}</a></li>''' for w in named)
+    return (body.replace('<!--naming:toc-->', toc).replace('<!--naming:entries-->', '\n\n'.join(naming_entry(w) for w in named))
+            .replace('<!--naming:count-->', str(len(named))))
 
 ANSWER_LINKS = {'feed-into-obs': ('Into OBS, step by step', 'how-to-irl.html#into-obs'), 'second-link-idle': ('Adding a second network', 'how-to-irl.html#second-network'), 'live-not-on-platform': ('Into OBS, step by step', 'how-to-irl.html#into-obs'), 'switcher-no-stats': ('Into OBS, step by step', 'how-to-irl.html#into-obs')}
 

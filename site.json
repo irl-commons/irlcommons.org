@@ -7,6 +7,7 @@
     "open-standards.html",
     "data.html",
     "existing-formats.html",
+    "words-for-app-makers.html",
     "contribute.html",
     "contact.html",
     "legal-notice.html",
@@ -14,5 +15,5 @@
     "privacy.html",
     "datenschutz.html"
   ],
-  "dataCommit": "5d5436893032fce768aee6d255c908ecfe14f8cb"
+  "dataCommit": "8f1c1831a62efb9611d471f62025f43c95aa20e3"
 }
