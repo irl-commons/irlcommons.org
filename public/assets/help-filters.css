@@ -27,6 +27,9 @@
   .help-page:not(.ix-js):has(#kind-video:target) .ix-row:not([data-k="video"]) { display: none; }
   .help-page:not(.ix-js):has(#kind-video:target) a[data-f="kind-video"] { border-color: var(--fg); background: var(--sunk); box-shadow: inset 0 -3px 0 var(--fg); }
   .help-page:not(.ix-js):has(#kind-video:target) .fnote[data-f="kind-video"] { display: block; }
+  .help-page:not(.ix-js):has(#kind-docs:target) .ix-row:not([data-k="docs"]) { display: none; }
+  .help-page:not(.ix-js):has(#kind-docs:target) a[data-f="kind-docs"] { border-color: var(--fg); background: var(--sunk); box-shadow: inset 0 -3px 0 var(--fg); }
+  .help-page:not(.ix-js):has(#kind-docs:target) .fnote[data-f="kind-docs"] { display: block; }
   .help-page:not(.ix-js):has(#for-belabox:target) .ix-row:not([data-c~="belabox"]) { display: none; }
   .help-page:not(.ix-js):has(#for-belabox:target) a[data-f="for-belabox"] { border-color: var(--fg); background: var(--sunk); box-shadow: inset 0 -3px 0 var(--fg); }
   .help-page:not(.ix-js):has(#for-belabox:target) .fnote[data-f="for-belabox"] { display: block; }

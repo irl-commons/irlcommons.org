@@ -1516,7 +1516,7 @@ details.sources > .tip-src { display: block; margin-top: 0; margin-bottom: 8px; 
 /* Shared directory controls: search above equal-height filter fields. */
 .search-field, .filter-field { display: flex; flex-direction: column; align-items: stretch; gap: 6px; margin: 0; min-width: 0; }
 .search-field label, .filter-field { font-size: var(--t-small); font-weight: 700; }
-.search-field input[type="search"], .filter-field select { box-sizing: border-box; width: 100%; max-width: none; flex: none; height: 44px; min-height: 44px; padding: 8px 12px; border: 1.5px solid var(--rule-strong); border-radius: var(--radius); background: var(--card); color: var(--fg); font: inherit; }
+.search-field input[type="search"], .filter-field select, .on-filter a { box-sizing: border-box; width: 100%; max-width: none; flex: none; height: 44px; min-height: 44px; padding: 8px 12px; border: 1.5px solid var(--rule-strong); border-radius: var(--radius); background: var(--card); color: var(--fg); font: inherit; }
 .filter-controls { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
 .ix-js .ix-filters > .chainmap, .ix-js .ix-row2 { display: none; }
 .ix-search { margin: 0; }
@@ -1525,3 +1525,9 @@ details.sources > .tip-src { display: block; margin-top: 0; margin-bottom: 8px; 
 .filter-reset:hover { color: var(--fg); }
 .ix-rows:has(> li):not(:has(> li:not([hidden]))) { border: 0; }
 @media (max-width: 520px) { .filter-controls { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); } }
+
+.search-field label { margin: 0; }
+.filter-field select { font-weight: 400; }
+
+.std-tools { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
+.std-tools .word-count { margin: 0; }

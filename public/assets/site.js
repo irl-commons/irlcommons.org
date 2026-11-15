@@ -221,8 +221,6 @@
     if (!tools) return;
     var q = document.getElementById("std-q");
     var count = document.getElementById("std-count");
-    var none = document.getElementById("no-std");
-    var reset = document.getElementById("std-reset");
     var entries = Array.prototype.slice.call(document.querySelectorAll(".std, .block"));
     var groups = Array.prototype.slice.call(document.querySelectorAll(".std-group, #building-blocks"));
     var opened = []; // group lists the search opened, closed again when the search is cleared
@@ -243,11 +241,15 @@
         if (finding && list && !empty && !list.open) { list.open = true; opened.push(list); }
       });
       if (!finding) { opened.forEach(function (d) { d.open = false; }); opened = []; }
-      count.textContent = shown ? standardCount(shown, entries.length) : "";
-      none.hidden = shown > 0;
+      count.textContent = shown ? standardCount(shown, entries.length) : "Nothing matches that.";
+      if (finding) {
+        var reset = document.createElement("button");
+        reset.type = "button"; reset.className = "filter-reset"; reset.textContent = "Clear filters";
+        reset.addEventListener("click", function () { q.value = ""; apply(); q.focus(); });
+        count.appendChild(reset);
+      }
     }
     q.addEventListener("input", apply);
-    reset.addEventListener("click", function () { q.value = ""; q.dispatchEvent(new Event("input", { bubbles: true })); q.focus(); });
     tools.hidden = false;
     apply();
   }
@@ -655,7 +657,7 @@
       select.add(new Option(g[3], ""));
       links.forEach(function (a) {
         var id = a.getAttribute("data-f");
-        if (id.indexOf(g[2]) === 0) select.add(new Option(a.textContent.replace(/\s+\d+\s*$/, "").trim(), id.slice(g[2].length)));
+        if (id.indexOf(g[2]) === 0) select.add(new Option((a.querySelector(".sl") ? a.querySelector(".sl").textContent : a.textContent.replace(/\s+\d+\s*$/, "")).trim(), id.slice(g[2].length)));
       });
       select.addEventListener("change", function () { st[g[0]] = select.value; apply(true); });
       selects[g[0]] = select;
