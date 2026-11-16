@@ -408,7 +408,7 @@ def guide_by(g: dict) -> str:
 PLATFORM_LABEL = {'ios': 'iPhone', 'android': 'Android'}
 
 def channels(s: dict) -> list[dict]:
-    return s['support'] + SITE_SUPPORT_EXTRA.get(s['id'], [])
+    return s['support']
 
 def stack_keys(s: dict) -> list[str]:
     return s['covers'] if s['kind'] == 'community' else [s['id']]
@@ -444,7 +444,6 @@ def service_line(s: dict, with_extra: bool=True) -> str:
     anchor = f''' id="{s['id']}"''' if with_extra else ''
     return f'''<li{anchor}><a href="{html.escape(url)}">{html.escape(s['name'], quote=False)}</a>{extra}: {html.escape(s['description'], quote=False)}{role}{service_tags(s)}{guides} {edit_icon('services', s['id'], s['name'])}</li>'''
 
-SITE_SUPPORT_EXTRA = {'irlplus-cast': [{'label': 'IRL+ Discord', 'url': 'https://discord.gg/GCrKZNj5VA'}], 'irlplus-chat': [{'label': 'IRL+ Discord', 'url': 'https://discord.gg/GCrKZNj5VA'}], 'irl-pro': [{'label': 'IRL Pro Discord', 'url': 'https://discord.gg/irlpro'}], 'moblin': [{'label': 'Moblin Discord', 'url': 'https://discord.moblin.app'}], 'tvu-go': [{'label': 'TVU Go Discord', 'url': 'https://discord.com/invite/NYemJf98A5'}], 'belabox-cloud': [{'label': 'BELABOX Discord', 'url': 'https://discord.gg/hS8TcpsCKu'}], 'irlplus-bond': [{'label': 'IRL+ Discord', 'url': 'https://discord.gg/GCrKZNj5VA'}], 'belabox': [{'label': 'BELABOX Discord', 'url': 'https://discord.gg/hS8TcpsCKu'}], 'ceralive': [{'label': 'CeraLive Discord', 'url': 'https://discord.gg/Q2bvU49yx2'}], 'irlplus-store': [{'label': 'IRL+ Discord', 'url': 'https://discord.gg/GCrKZNj5VA'}], 'yolobox-ultra': [{'label': 'YoloLiv Discord', 'url': 'https://discord.gg/UtdFmhS3J5'}], 'irlplus-video-mixer': [{'label': 'IRL+ Discord', 'url': 'https://discord.gg/GCrKZNj5VA'}], 'irlhosting': [{'label': 'IRLhosting Discord', 'url': 'https://discord.gg/IRltools'}], 'irltoolkit': [{'label': 'IRLToolkit Discord', 'url': 'https://irltoolkit.com/discord'}], 'obs-studio': [{'label': 'OBS Discord', 'url': 'https://discord.gg/obsproject'}], 'streamer-bot': [{'label': 'Streamer.bot Discord', 'url': 'https://discord.streamer.bot'}]}
 
 SITE_HOME = {'moblink': ('https://discord.gg/kh3KMng4JV', "on Moblin's Discord, in #tech-support-forum")}
 
@@ -462,7 +461,7 @@ def chain_html() -> str:
 
 def ask_link(sid: str) -> str:
     s = SERVICES_BY_ID[sid]
-    href = f'help.html#ask-{sid}' if s['support'] or SITE_SUPPORT_EXTRA.get(sid) else s['url']
+    href = f'help.html#ask-{sid}' if s['support'] else s['url']
     return f'''<a href="{html.escape(href)}">{html.escape(s['name'], quote=False)}</a>'''
 
 def answers_html(answers: list[dict], words: list[dict]) -> tuple[str, str]:
@@ -1058,7 +1057,10 @@ def help_step(s: dict) -> str:
 def help_listed(s: dict) -> bool:
     return s['kind'] != 'community' and s['class'] not in ('docs', 'building-block')
 
-def channel_type(label: str, url: str) -> str:
+def channel_type(label: str, url: str, kind: str | None = None) -> str:
+    typed = {'discord': 'Discord', 'forum': 'Forum', 'help': 'Help', 'docs': 'Help', 'contact': 'Contact', 'github': 'GitHub'}
+    if kind in typed:
+        return typed[kind]
     l, u = label.lower(), url.lower()
     if 'discord' in l or 'discord' in u:
         return 'Discord'
@@ -1079,7 +1081,7 @@ def help_channels(s: dict) -> list[tuple[str, str]]:
     for c in pool:
         if c['url'] not in seen:
             seen.add(c['url'])
-            out.append((channel_type(c['label'], c['url']), c['url']))
+            out.append((channel_type(c['label'], c['url'], c.get('kind')), c['url']))
     out.sort(key=lambda c: HELP_CHANNELS.index(c[0]))
     asked = [c for c in out if c[0] != 'GitHub']
     out = asked or out[:1]
