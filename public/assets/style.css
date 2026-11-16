@@ -1680,3 +1680,39 @@ ol.picks.steps .picks.mix, .picks.mix .picks.mix, details.block .picks .picks.mi
 .myapps .gt .dot { width: 10px; height: 10px; }
 .myapps .th { flex: none; line-height: 0; }
 .myapps .th img { width: 96px; height: auto; border-radius: 6px; display: block; }
+
+/* Wide screens: the left column holds navigation already on the page. Home: "Learn more and get help" on the start view. */
+@media (min-width: 1000px) {
+  @supports selector(:has(*)) {
+    .home-page:not(:has(.step:not(#start):target, .step:not(#start) :target)) > .parts, .home-page:not(:has(.step:not(#start):target, .step:not(#start) :target)) > .parts > .flow, .home-page:not(:has(.step:not(#start):target, .step:not(#start) :target)) .flow > .step.start { display: contents; }
+    .home-page:not(:has(.step:not(#start):target, .step:not(#start) :target)) .step.start > * { grid-column: 2; }
+    .home-page:not(:has(.step:not(#start):target, .step:not(#start) :target)) .step.start > #grp-learn-more-and-get-help { grid-column: 1; grid-row: 2; margin-top: 0; }
+    .home-page:not(:has(.step:not(#start):target, .step:not(#start) :target)) .step.start > .choices.learn { grid-column: 1; grid-row: 3 / span 3; align-self: start; grid-template-columns: minmax(0, 1fr); }
+    .home-page:not(:has(.step:not(#start):target, .step:not(#start) :target)) .step.start > .choices.learn li:first-child a { border-top: 1px solid var(--rule); }
+    .home-page:not(:has(.step:not(#start):target, .step:not(#start) :target)) .step.start > .choices.learn a { padding: 10px 0; grid-template-columns: minmax(0, 1fr); }
+    .home-page:not(:has(.step:not(#start):target, .step:not(#start) :target)) .step.start > .choices.learn .ill { display: none; }
+  }
+}
+
+/* Help on wide screens: the tabs in the left rail, under them the four parts (Help tab) or the guide filters (Guides tab). */
+.help-parts { display: none; }
+@media (min-width: 1000px) {
+  .myapps > .help-rail { grid-column: 1; grid-row: 2 / span 2; align-self: start; position: sticky; top: var(--s3); }
+  .myapps > #start-here { grid-row: 2; }
+  .myapps > #guides { grid-row: 3; }
+  .myapps .help-rail .tabs { max-width: none; margin: 6px 0 var(--s3); }
+  .help-parts { display: block; font-size: var(--t-small); }
+  .help-parts a { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-top: 1px solid var(--rule); color: var(--fg); text-decoration: none; font-weight: 700; }
+  .help-parts a:last-child { border-bottom: 1px solid var(--rule); }
+  .help-parts a:hover { text-decoration: underline; }
+  .help-parts .count { margin-left: auto; color: var(--muted); font-weight: 400; }
+  .myapps:has(#start-here[hidden]) .help-parts { display: none; }
+  .myapps:has(#guides[hidden]) .help-rail .filters { display: none !important; }
+  .myapps .help-rail .filters { margin: 0; padding: 0; border: 0; border-radius: 0; background: none; }
+  .myapps .help-rail .fg { grid-template-columns: minmax(0, 1fr); gap: 6px; }
+  .myapps .help-rail .frow { flex-direction: column; align-items: stretch; gap: 4px; }
+  .myapps .help-rail .chip { white-space: nowrap; }
+  .myapps .help-rail .chip .sn { margin-left: auto; }
+  .myapps .help-rail .sel, .myapps .help-rail select { width: 100%; }
+}
+@media (min-width: 1000px) and (max-height: 700px) { .myapps > .help-rail { position: static; } }

@@ -741,6 +741,15 @@
     page.classList.add("ma-js");
     Array.prototype.forEach.call(page.querySelectorAll(".search, .filters, .tog"), function (el) { el.hidden = false; });
 
+    // On wide screens the guide filters sit in the left rail, under the tabs; below 1000 px they stay above the guides.
+    var rail = page.querySelector(".help-rail"), filters = page.querySelector(".filters");
+    if (rail && filters && window.matchMedia) {
+      var fHome = filters.parentNode, fNext = filters.nextSibling, wide = window.matchMedia("(min-width: 1000px)");
+      var placeFilters = function () { if (wide.matches) rail.appendChild(filters); else fHome.insertBefore(filters, fNext); };
+      placeFilters();
+      if (wide.addEventListener) wide.addEventListener("change", placeFilters);
+    }
+
     // Tabs
     var nav = page.querySelector(".tabs"), tabs = [$("t-help"), $("t-guides")], panels = [$("start-here"), $("guides")];
     nav.setAttribute("role", "tablist"); nav.removeAttribute("aria-label");
