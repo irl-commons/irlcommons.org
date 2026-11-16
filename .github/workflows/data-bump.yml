@@ -1,0 +1,86 @@
+name: Update IRL Commons data
+# Follow npm releases after the reviewed migration from the git pin.
+on:
+  schedule:
+    - cron: "23 5 * * *"
+  workflow_dispatch:
+permissions:
+  contents: write
+  pull-requests: write
+concurrency:
+  group: data-bump
+  cancel-in-progress: false
+jobs:
+  bump:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 24
+          cache: npm
+      - name: Find the latest npm release
+        id: release
+        run: |
+          version=$(npm view @irl-commons/data version)
+          [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "Expected a stable npm version" >&2; exit 1; }
+          current=$(node -p "require('./package.json').dependencies['@irl-commons/data']")
+          if [[ ! "$current" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::warning::Keep the git pin until a reviewed npm release includes the data already used by the site."
+            exit 0
+          fi
+          if [ "$version" = "$current" ]; then echo "Already on $version."; exit 0; fi
+          # Never downgrade if latest has been moved back to an older release.
+          node -e 'const [a,b]=process.argv.slice(1).map(v=>v.split(".").map(Number)); for(let i=0;i<3;i++){if(a[i]>b[i])process.exit(0);if(a[i]<b[i])process.exit(1)}process.exit(1)' "$version" "$current"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+      - name: Prepare the release branch
+        if: steps.release.outputs.version != ''
+        env:
+          VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898299+github-actions[bot]@users.noreply.github.com"
+          branch="data/irl-commons-$VERSION"
+          if git ls-remote --exit-code origin "refs/heads/$branch" >/dev/null; then
+            git fetch origin "$branch"
+            git switch -c "$branch" FETCH_HEAD
+            git merge origin/main --no-edit
+          else
+            git switch -c "$branch" origin/main
+          fi
+          npm install --save-exact --ignore-scripts "@irl-commons/data@$VERSION"
+          node -e 'const fs=require("fs");const c=JSON.parse(fs.readFileSync("site.json","utf8"));delete c.dataCommit;c.dataVersion=process.argv[1];fs.writeFileSync("site.json",JSON.stringify(c,null,2)+"\n")' "$VERSION"
+      - name: Verify provenance, build and check
+        if: steps.release.outputs.version != ''
+        run: |
+          npm ci --ignore-scripts
+          npm audit signatures
+          npm run check
+      - name: Open or update the pull request
+        if: steps.release.outputs.version != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          branch="data/irl-commons-$VERSION"
+          git add package.json package-lock.json site.json
+          if ! git diff --cached --quiet; then
+            git commit -m "Data: update @irl-commons/data to $VERSION"
+          fi
+          git fetch origin main
+          git rebase origin/main
+          # Recheck if main changed while the release was being tested.
+          npm ci --ignore-scripts
+          npm audit signatures
+          npm run check
+          git push origin "$branch"
+          title="Data: update @irl-commons/data to $VERSION"
+          body="Pins @irl-commons/data to npm release $VERSION. Clean install, signature and provenance verification, build and site checks passed in the update job. Deploy after merging."
+          pr=$(gh pr list --base main --head "$branch" --state open --json number --jq '.[0].number // empty')
+          if [ -n "$pr" ]; then
+            gh pr edit "$pr" --title "$title" --body "$body"
+          else
+            gh pr create --base main --head "$branch" --title "$title" --body "$body"
+          fi
