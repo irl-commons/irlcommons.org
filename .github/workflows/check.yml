@@ -14,4 +14,12 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci --ignore-scripts
+      - name: Verify npm package signatures and provenance
+        run: |
+          current=$(node -p "require('./package.json').dependencies['@irl-commons/data']")
+          if [[ "$current" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            npm audit signatures
+          else
+            echo "Git data pin retained pending the reviewed npm migration."
+          fi
       - run: npm run check
