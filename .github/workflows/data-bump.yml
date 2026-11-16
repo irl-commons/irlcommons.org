@@ -1,5 +1,5 @@
 name: Update IRL Commons data
-# Follow npm releases after the reviewed migration from the git pin.
+# Follow stable npm releases; every update is reviewed in a pull request.
 on:
   schedule:
     - cron: "23 5 * * *"
@@ -24,13 +24,10 @@ jobs:
       - name: Find the latest npm release
         id: release
         run: |
-          version=$(npm view @irl-commons/data version)
+          version=$(npm view @irl-commons/data@latest version)
           [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "Expected a stable npm version" >&2; exit 1; }
           current=$(node -p "require('./package.json').dependencies['@irl-commons/data']")
-          if [[ ! "$current" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "::warning::Keep the git pin until a reviewed npm release includes the data already used by the site."
-            exit 0
-          fi
+          [[ "$current" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "Expected an exact npm dependency version" >&2; exit 1; }
           if [ "$version" = "$current" ]; then echo "Already on $version."; exit 0; fi
           # Never downgrade if latest has been moved back to an older release.
           node -e 'const [a,b]=process.argv.slice(1).map(v=>v.split(".").map(Number)); for(let i=0;i<3;i++){if(a[i]>b[i])process.exit(0);if(a[i]<b[i])process.exit(1)}process.exit(1)' "$version" "$current"

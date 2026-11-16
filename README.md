@@ -14,9 +14,10 @@ response headers; configure equivalent headers when the host does not read it.
 
 Edit prose in `content/`, page metadata and navigation in `src/shells.json`,
 and the Astro layout and components in `src/`. The build resolves catalogue
-slots from `@irl-commons/data`, pinned to a public Git commit while the npm
-package is unavailable. No private data copy is needed. To update it, change
-the dependency pin and lockfile together, then run all checks.
+slots from `@irl-commons/data`, pinned to an exact npm version. To update it,
+change the dependency pin, lockfile and `site.json` dataVersion together, then
+run all checks. CI verifies registry signatures and provenance. The daily
+update job follows npm’s `latest` tag and opens a release pull request.
 
 `shared/` is the same versioned folder in both site repositories: rendering
 functions, calculator formula, thumbnail attribution and the data-use model.
