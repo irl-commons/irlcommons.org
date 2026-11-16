@@ -1122,6 +1122,14 @@ def help_apps_html(services: list[dict], guides: list[dict]) -> str:
                      f'<ul class="rows">{rows}</ul></section>')
     return '<div class="part-boxes" id="where-to-ask">' + ''.join(boxes) + '</div>'
 
+def help_parts_html(services: list[dict]) -> str:
+    """Jump links to the four part boxes, with their counts; shown in the left rail on wide screens only."""
+    apps = help_apps(services)
+    links = ''.join(f'<a href="#box-{st}"><span class="dot s-{st}" aria-hidden="true"></span>{html.escape(label, quote=False)}'
+                    f'<span class="count"><span class="vh">(</span>{sum(1 for s in apps if help_step(s) == st)}<span class="vh"> apps)</span></span></a>'
+                    for st, label in HELP_STEPS)
+    return f'<nav class="help-parts" aria-label="Parts">{links}</nav>'
+
 def help_guide_steps(g: dict) -> list[str]:
     return list(dict.fromkeys(HELP_STEP[p] for p in g['part']))
 
@@ -1173,10 +1181,11 @@ def help_guides_html(services: list[dict], guides: list[dict], own: list[dict]) 
             '<p class="empty" id="gnone" hidden>No guide matches.</p>')
 
 def help_page_html(services: list[dict], guides: list[dict], own: list[dict]) -> str:
-    """The Help page body under its h1: tabs, the Help tab (search, My apps, the four part boxes) and the Guides tab."""
+    """The Help page body under its h1: the rail (tabs, part links), the Help tab (search, My apps, the four part boxes) and the Guides tab."""
     sug = 'https://github.com/irl-commons/irl-commons/issues/new?template=new-entry.yml&amp;title=Suggest%3A%20new%20entry&amp;description=An%20entry%20for%20the%20How%20to%20IRL%20directory'
     return (HELP_SPRITE +
-            '<nav class="tabs" aria-label="Help and guides"><a href="#start-here" id="t-help">Help</a><a href="#guides" id="t-guides">Guides</a></nav>'
+            '<div class="help-rail"><nav class="tabs" aria-label="Help and guides"><a href="#start-here" id="t-help">Help</a><a href="#guides" id="t-guides">Guides</a></nav>'
+            + help_parts_html(services) + '</div>'
             '<section class="tab-panel" id="start-here" aria-labelledby="t-help">'
             '<div class="search" hidden><label class="sbox">' + help_icon('search') + '<span class="vh">Find your app</span><input id="q" type="search" placeholder="Find your app" autocomplete="off" spellcheck="false"></label></div>'
             '<div class="banner" id="shared" hidden><b>Apps shared with you</b><button type="button" class="p" id="keep">Keep as mine</button><button type="button" id="flip">Show mine</button></div>'
