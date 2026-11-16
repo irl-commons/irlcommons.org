@@ -577,178 +577,484 @@
 (function () {
   "use strict";
 
-  // Help, the guide directory: filters by part of the chain, kind and product, plus search. Without script each
-  // filter is a link to an empty anchor and help-filters.css hides the rest; with script they combine, the search
-  // and the filters live in the address (reload and links keep them), and the count says what shows.
-  var GROUPS = [["part", "guides-"], ["kind", "kind-"], ["for", "for-"]];
+  // Help, "My apps": the page lists every app (four part boxes, A-Z) and every guide in its HTML. With script this adds
+  // the "Find your app" search, saving apps on this device (localStorage, nothing leaves the browser), the full app card
+  // (a bottom sheet on a phone, a dialog on a computer), "Share link" (a #stack= link), the Help and Guides tabs
+  // and the guide filters. Older addresses still land: #for-<app>, #guides-<part>, #kind-<kind>, #guides?part=…&q=…,
+  // #ask-<app> (opens its card), #where-to-ask and a guide's own id.
+  var KEY = "howtoirl.myapps";
+  var STEPS = [["sender", "Camera and sender"], ["connections", "Connections"], ["receiver", "Receiver or cloud"], ["tools", "OBS and tools"]];
+  var OLD_PART = { camera: "sender", sender: "sender", connections: "connections", receiver: "receiver", platform: "receiver", obs: "tools", tools: "tools" };
+  var KINDS = [["article", "Articles"], ["video", "Videos"], ["docs", "Docs"]];
+  var SRC = [["own", "How to IRL"], ["other", "Apps and community"]];
+  var HELP_IDS = { "start-here": 1, "where-to-ask": 1, "my-stack": 1, listed: 1 };
 
-  function norm(text) {
-    return String(text || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+  // Typo-tolerant matching, word by word: skipped letters, one wrong, missing, extra or swapped letter, and names
+  // typed without their spaces or dots ("irlpro", "streamerbot").
+  function inOrder(q, w) {
+    var j = 0, gaps = 0, last = -1;
+    for (var i = 0; i < q.length; i++) {
+      var p = w.indexOf(q[i], j);
+      if (p < 0) return 0;
+      if (last >= 0) gaps += p - last - 1;
+      last = p; j = p + 1;
+    }
+    return gaps <= q.length ? 100 - gaps * 4 : 0;
   }
-
-  function rowMatches(search, q) {
-    var hay = norm(search);
-    return norm(q).split(/\s+/).filter(Boolean).every(function (piece) { return hay.indexOf(piece) !== -1; });
+  function oneEdit(a, b) {
+    if (Math.abs(a.length - b.length) > 1) return false;
+    var i = 0, j = 0, e = 0;
+    while (i < a.length && j < b.length) {
+      if (a[i] === b[j]) { i++; j++; continue; }
+      if (++e > 1) return false;
+      if (a.length > b.length) i++;
+      else if (b.length > a.length) j++;
+      else if (a[i + 1] === b[j] && a[i] === b[j + 1]) { i += 2; j += 2; }
+      else { i++; j++; }
+    }
+    return e + (a.length - i) + (b.length - j) <= 1;
   }
-
-  // "#guides-obs", "#kind-video", "#for-moblin", or several at once: "#guides?part=obs&kind=video&for=moblin&q=mob".
-  // Older addresses still land: "#part=obs&problem=…", "#q=moblin", "#stack=moblin,irl-pro", "#ask-moblin".
-  function parseState(hash) {
-    var raw = String(hash || "").replace(/^#/, "");
-    var st = { part: "", kind: "", for: "", q: "", row: "", away: "" };
-    var ask = /^ask-([a-z0-9-]+)$/.exec(raw);
-    if (ask) { st.away = "links.html#" + ask[1]; return st; }
-    if (raw === "where-to-ask") { st.away = "links.html"; return st; }
-    var single = /^(guides-|kind-|for-)([a-z0-9-]+)$/.exec(raw);
-    if (single) { st[{ "guides-": "part", "kind-": "kind", "for-": "for" }[single[1]]] = single[2]; return st; }
-    var query = raw.indexOf("?") !== -1 ? raw.slice(raw.indexOf("?") + 1) : (raw.indexOf("=") !== -1 ? raw : "");
-    if (!query) { if (/^[a-z0-9-]+$/.test(raw) && raw !== "guides") st.row = raw; return st; }
-    query.split("&").forEach(function (pair) {
-      var i = pair.indexOf("="); if (i < 1) return;
-      var k = pair.slice(0, i), v = pair.slice(i + 1);
-      try { v = decodeURIComponent(v.replace(/\+/g, " ")); } catch (e) { return; }
-      if (k === "part" || k === "kind" || k === "for") { if (/^[a-z0-9-]+$/.test(v)) st[k] = v; }
-      else if (k === "q") st.q = v.slice(0, 80);
-      else if (k === "stack" && !st.for) st.for = (v.split(",")[0] || "").replace(/[^a-z0-9-]/g, "");
+  function fuzzy(q, s) {
+    q = String(q || "").toLowerCase().trim(); s = String(s || "").toLowerCase();
+    if (!q) return 1;
+    var k = s.indexOf(q);
+    if (k >= 0) return 200 - k;
+    var sq = q.replace(/[^a-z0-9]/g, ""), ss = s.replace(/[^a-z0-9]/g, "");
+    if (sq && ss.indexOf(sq) !== -1) return 150;
+    // Several words: each one has to match on its own ("obs studo").
+    var words = q.split(/\s+/).filter(Boolean);
+    if (words.length > 1) {
+      return words.reduce(function (low, w) { return Math.min(low, fuzzy(w, s)); }, Infinity);
+    }
+    var best = 0;
+    s.split(/[^a-z0-9+]+/).forEach(function (w) {
+      if (!w) return;
+      var sc = Math.max(inOrder(q, w), (q.length > 3 && oneEdit(q, w.slice(0, q.length + 1))) || oneEdit(q, w) ? 90 : 0);
+      if (sc > best) best = sc;
     });
-    return st;
+    return best;
   }
 
-  function stateHash(st) {
-    var set = GROUPS.filter(function (g) { return st[g[0]]; });
-    if (!st.q && set.length === 0) return "#guides";
-    if (!st.q && set.length === 1) return "#" + set[0][1] + st[set[0][0]];
-    var parts = set.map(function (g) { return g[0] + "=" + st[g[0]]; });
-    if (st.q) parts.push("q=" + encodeURIComponent(st.q));
+  // What an address asks for. tab: "help" or "guides"; stack: the apps of a shared link; f: guide filters;
+  // open: an app card to open; row: an element to scroll to.
+  function parseHash(hash) {
+    var raw = String(hash || "").replace(/^#/, "");
+    var out = { tab: "", stack: null, f: null, open: "", row: "" };
+    if (!raw) return out;
+    var stack = /(?:^|[?&])stack=([a-z0-9,-]*)/.exec(raw);
+    if (stack) { out.tab = "help"; out.stack = stack[1].split(",").filter(Boolean); return out; }
+    var ask = /^ask-([a-z0-9-]+)$/.exec(raw);
+    if (ask) { out.tab = "help"; out.open = ask[1]; return out; }
+    var app = /^app-([a-z0-9-]+)$/.exec(raw);
+    if (app) { out.tab = "help"; out.row = raw; return out; }
+    if (HELP_IDS[raw]) { out.tab = "help"; out.row = raw === "start-here" || raw === "my-stack" ? "" : raw; return out; }
+    var f = { src: "", st: "", k: "", app: "", q: "" };
+    var one = /^(guides-|kind-|for-)([a-z0-9-]+)$/.exec(raw);
+    if (one) {
+      if (one[1] === "guides-") f.st = OLD_PART[one[2]] || "";
+      else if (one[1] === "kind-") f.k = one[2];
+      else f.app = one[2];
+      out.tab = "guides"; out.f = f; return out;
+    }
+    if (raw === "guides") { out.tab = "guides"; out.f = f; return out; }
+    var query = raw.indexOf("?") !== -1 ? raw.slice(raw.indexOf("?") + 1) : (raw.indexOf("=") !== -1 ? raw : "");
+    if (query) {
+      query.split("&").forEach(function (pair) {
+        var i = pair.indexOf("="); if (i < 1) return;
+        var key = pair.slice(0, i), v = pair.slice(i + 1);
+        try { v = decodeURIComponent(v.replace(/\+/g, " ")); } catch (e) { return; }
+        if (key === "part") f.st = OLD_PART[v] || "";
+        else if ((key === "kind" || key === "for") && /^[a-z0-9-]+$/.test(v)) f[key === "kind" ? "k" : "app"] = v;
+        else if (key === "from" && (v === "own" || v === "other")) f.src = v;
+        else if (key === "q") f.q = v.slice(0, 80);
+      });
+      out.tab = "guides"; out.f = f; return out;
+    }
+    if (/^[a-z0-9-]+$/.test(raw)) out.row = raw;
+    return out;
+  }
+
+  // The address for a set of guide filters: "#guides", one filter as its own anchor, or "#guides?…".
+  function guidesHash(f) {
+    var set = [];
+    if (f.src) set.push(["from", f.src, ""]);
+    if (f.st) set.push(["part", f.st, "guides-"]);
+    if (f.k) set.push(["kind", f.k, "kind-"]);
+    if (f.app) set.push(["for", f.app, "for-"]);
+    if (!f.q && set.length === 0) return "#guides";
+    if (!f.q && set.length === 1 && set[0][2]) return "#" + set[0][2] + set[0][1];
+    var parts = set.map(function (x) { return x[0] + "=" + x[1]; });
+    if (f.q) parts.push("q=" + encodeURIComponent(f.q));
     return "#guides?" + parts.join("&");
   }
 
-  function countText(shown, total, filtered) {
-    if (!filtered) return "Showing all " + total + " guides.";
-    if (shown === 0) return "No guide matches.";
-    return "Showing " + shown + " of " + total + " guide" + (total === 1 ? "" : "s") + ".";
+  function countText(shown, total) {
+    return shown === total ? "All " + total + " guides" : shown + " of " + total + " guides";
   }
 
   if (typeof module === "object" && module.exports) {
-    module.exports = { rowMatches: rowMatches, parseState: parseState, stateHash: stateHash, countText: countText };
+    module.exports = { fuzzy: fuzzy, parseHash: parseHash, guidesHash: guidesHash, countText: countText };
     return;
   }
 
   try { window.localStorage.removeItem("osb.stack.v1"); } catch (e) {  }
 
-  function initHelp() {
-    var page = document.querySelector(".help-page");
-    if (!page || !document.querySelector(".ix-rows")) return;
-    var first = parseState(window.location.hash);
-    if (first.away) { window.location.replace(first.away); return; }
-    var search = document.getElementById("dir-search");
-    var q = document.getElementById("dir-q");
-    var count = document.getElementById("dir-count");
-    var prod = document.getElementById("by-product");
-    var cur = prod ? prod.querySelector(".fcur") : null;
-    var rows = Array.prototype.slice.call(page.querySelectorAll(".ix-row"));
-    var links = Array.prototype.slice.call(page.querySelectorAll("a[data-f]"));
-    var known = {};
-    links.forEach(function (a) { known[a.getAttribute("data-f")] = a; });
-    var st = { part: "", kind: "", for: "", q: "" };
+  function toTop() { window.scrollTo({ top: 0, left: 0, behavior: "instant" }); }
 
-    function take(next) {
-      GROUPS.forEach(function (g) { st[g[0]] = next[g[0]] && known[g[1] + next[g[0]]] ? next[g[0]] : ""; });
-      st.q = next.q || "";
-      q.value = st.q;
-    }
-    function rowOk(li) {
-      if (st.part && (" " + li.getAttribute("data-p") + " ").indexOf(" " + st.part + " ") === -1) return false;
-      if (st.kind && li.getAttribute("data-k") !== st.kind) return false;
-      if (st.for && (" " + li.getAttribute("data-c") + " ").indexOf(" " + st.for + " ") === -1) return false;
-      return rowMatches(li.getAttribute("data-search") || "", st.q.trim());
-    }
-    function syncUrl() {
-      var h = stateHash(st);
-      if (h === window.location.hash || (h === "#guides" && !window.location.hash)) return;
-      try { window.history.replaceState(window.history.state, "", h === "#guides" ? window.location.pathname + window.location.search : h); } catch (e) {  }
-    }
-    function apply(write) {
-      var shown = 0;
-      rows.forEach(function (li) { var ok = rowOk(li); li.hidden = !ok; if (ok) shown++; });
-      links.forEach(function (a) {
-        var f = a.getAttribute("data-f"), on = GROUPS.some(function (g) { return st[g[0]] && g[1] + st[g[0]] === f; });
-        a.classList.toggle("is-on", on);
-        if (on) a.setAttribute("aria-current", "true"); else a.removeAttribute("aria-current");
-      });
-      if (cur) cur.textContent = st.for && known["for-" + st.for] ? known["for-" + st.for].firstChild.textContent.trim() : "";
-      var fsum = prod ? prod.querySelector(".fsum") : null;
-      if (fsum) fsum.hidden = !!(st.for && known["for-" + st.for]);
-      if (typeof selects !== "undefined") Object.keys(selects).forEach(function (key) { selects[key].value = st[key]; });
-      var filtered = !!(st.part || st.kind || st.for || st.q.trim());
-      count.textContent = "";
-      count.appendChild(document.createTextNode(countText(shown, rows.length, filtered)));
-      if (filtered) {
-        var b = document.createElement("button");
-        b.type = "button"; b.className = "filter-reset"; b.textContent = "Clear filters";
-        b.addEventListener("click", function () { reset(); q.focus(); });
-        count.appendChild(b);
-      }
-      if (write) syncUrl();
-    }
-    function reset() { take({}); apply(true); }
-    function openRow(id) {
-      var row = id && /^[a-z0-9-]+$/.test(id) ? document.getElementById(id) : null;
-      if (row && row.classList.contains("ix-row")) { var d = row.querySelector(".ix-more"); if (d) d.open = true; }
-    }
-
-    var filters = document.getElementById("ix-filters");
-    filters.insertBefore(search, filters.firstChild);
-    var controls = document.createElement("div");
-    controls.className = "filter-controls";
-    var selects = {};
-    [["part", "Part", "guides-", "All parts"], ["for", "Product", "for-", "All products"], ["kind", "Kind", "kind-", "All kinds"]].forEach(function (g) {
-      var label = document.createElement("label");
-      label.className = "filter-field";
-      label.textContent = g[1];
-      var select = document.createElement("select");
-      select.add(new Option(g[3], ""));
-      links.forEach(function (a) {
-        var id = a.getAttribute("data-f");
-        if (id.indexOf(g[2]) === 0) select.add(new Option((a.querySelector(".sl") ? a.querySelector(".sl").textContent : a.textContent.replace(/\s+\d+\s*$/, "")).trim(), id.slice(g[2].length)));
-      });
-      select.addEventListener("change", function () { st[g[0]] = select.value; apply(true); });
-      selects[g[0]] = select;
-      label.appendChild(select); controls.appendChild(label);
-    });
-    filters.appendChild(controls);
-    page.classList.add("ix-js");
-    page.querySelector(".fnote-all").hidden = true;
-    count.hidden = false;
-    links.forEach(function (a) {
-      a.addEventListener("click", function (ev) {
-        ev.preventDefault();
-        var f = a.getAttribute("data-f");
-        GROUPS.forEach(function (g) { if (f.indexOf(g[1]) === 0) st[g[0]] = st[g[0]] === f.slice(g[1].length) ? "" : f.slice(g[1].length); });
-        if (prod && prod.contains(a)) prod.open = false;
-        apply(true);
-      });
-    });
-    q.addEventListener("input", function () { st.q = q.value; apply(true); });
-    // A click anywhere on a row that isn't a link opens or closes its details, like the whole-row disclosure of Index B.
-    rows.forEach(function (li) {
-      li.addEventListener("click", function (ev) {
-        if (ev.target.closest("a, summary, button, input, .ix-body")) return;
-        var d = li.querySelector(".ix-more"); if (d) d.open = !d.open;
-      });
-    });
-    window.addEventListener("hashchange", function () {
-      var next = parseState(window.location.hash);
-      if (next.away) { window.location.replace(next.away); return; }
-      if (next.row) { openRow(next.row); return; }
-      take(next); apply(/=/.test(window.location.hash));
-    });
-    search.hidden = false;
-    take(first);
-    openRow(first.row);
-    apply(/=/.test(window.location.hash)); // an older address is rewritten to today's form; a row's own anchor stays
+  function esc(t) {
+    return String(t).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
   }
 
-  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", initHelp);
-  else initHelp();
+  function init() {
+    var page = document.querySelector(".myapps");
+    if (!page) return;
+    var $ = function (id) { return document.getElementById(id); };
+    var apps = {}, order = [];
+    Array.prototype.forEach.call(page.querySelectorAll(".row[data-id]"), function (li) {
+      var links = [], guides = 0;
+      Array.prototype.forEach.call(li.querySelectorAll(".row-x a"), function (a) {
+        if (a.hasAttribute("data-g")) guides = parseInt(a.textContent, 10) || 0;
+        else links.push({ t: a.getAttribute("data-ct"), u: a.getAttribute("href") });
+      });
+      var id = li.getAttribute("data-id");
+      apps[id] = { id: id, st: li.getAttribute("data-st"), n: li.querySelector(".rn-n").textContent, pl: li.getAttribute("data-pl"),
+        ini: li.querySelector(".tile").textContent, chans: links.filter(function (l) { return l.t !== "Website"; }),
+        web: (links.filter(function (l) { return l.t === "Website"; })[0] || {}).u || "", guides: guides, row: li };
+      order.push(id);
+      // The name opens the full card; the extra links move into it.
+      var rn = li.querySelector(".rn"), b = document.createElement("button");
+      b.type = "button"; b.className = "rn"; b.setAttribute("data-open", id);
+      b.innerHTML = '<span class="rn-n">' + esc(apps[id].n) + "</span>" + rn.querySelector("small").outerHTML;
+      rn.parentNode.replaceChild(b, rn);
+    });
+    var known = function (ids) { return (ids || []).filter(function (id, i, all) { return apps[id] && all.indexOf(id) === i; }); };
+
+    var storage = null;
+    try { storage = window.localStorage; } catch (e) {  }
+    var mine = [];
+    try { mine = known(JSON.parse((storage && storage.getItem(KEY)) || "[]")); } catch (e) { mine = []; }
+    function save() { try { if (mine.length) storage.setItem(KEY, JSON.stringify(mine)); else storage.removeItem(KEY); } catch (e) {  } }
+    var shared = null, showing = "mine";
+    var cur = function () { return showing === "shared" ? shared : mine; };
+    var has = function (id) { return cur().indexOf(id) !== -1; };
+
+    page.classList.add("ma-js");
+    Array.prototype.forEach.call(page.querySelectorAll(".search, .filters, .tog"), function (el) { el.hidden = false; });
+
+    // Tabs
+    var nav = page.querySelector(".tabs"), tabs = [$("t-help"), $("t-guides")], panels = [$("start-here"), $("guides")];
+    nav.setAttribute("role", "tablist"); nav.removeAttribute("aria-label");
+    tabs.forEach(function (t, i) {
+      t.setAttribute("role", "tab"); t.setAttribute("aria-controls", panels[i].id);
+      panels[i].setAttribute("role", "tabpanel");
+    });
+    var active = "help";
+    function tab(name, focus) {
+      active = name;
+      tabs.forEach(function (t, i) {
+        var on = (i === 0) === (name === "help");
+        t.setAttribute("aria-selected", on ? "true" : "false");
+        t.tabIndex = on ? 0 : -1;
+        panels[i].hidden = !on;
+      });
+      if (focus) tabs[name === "help" ? 0 : 1].focus();
+    }
+    function address(h) {
+      var want = h || window.location.pathname + window.location.search;
+      try { window.history.replaceState(window.history.state, "", want); } catch (e) {  }
+    }
+    tabs.forEach(function (t, i) {
+      t.addEventListener("click", function (ev) {
+        ev.preventDefault();
+        tab(i === 0 ? "help" : "guides");
+        address(i === 0 ? "" : guidesHash(gfHash()));
+        toTop();
+      });
+      t.addEventListener("keydown", function (ev) {
+        if (ev.key !== "ArrowLeft" && ev.key !== "ArrowRight" && ev.key !== "Home" && ev.key !== "End") return;
+        ev.preventDefault();
+        var next = ev.key === "Home" ? 0 : ev.key === "End" ? 1 : 1 - i;
+        tabs[next].click(); tabs[next].focus();
+      });
+    });
+
+    // Cards
+    function togHtml(a, small) {
+      var on = has(a.id);
+      return '<button type="button" class="tog' + (small ? " sm" : "") + '" data-t="' + a.id + '" aria-pressed="' + on + '" aria-label="Add ' + esc(a.n) + ' to my apps">' + (on ? "✓" : "+") + "</button>";
+    }
+    function card(a, full, nameId) {
+      var chans = full ? a.chans : a.chans.slice(0, 1);
+      var acts = chans.map(function (c, k) { return '<a' + (k === 0 ? ' class="p"' : "") + ' href="' + esc(c.u) + '">' + esc(c.t) + "</a>"; });
+      if (a.guides) acts.push('<button type="button" data-g="' + a.id + '">' + a.guides + " guide" + (a.guides > 1 ? "s" : "") + "</button>");
+      if (a.web) acts.push('<a' + (chans.length ? "" : ' class="p"') + ' href="' + esc(a.web) + '">Website</a>');
+      return '<div class="card' + (full ? " full" : "") + '" data-id="' + a.id + '"><div class="head"><span class="tile s-' + a.st + '" aria-hidden="true">' + esc(a.ini) + "</span>" +
+        '<div class="ct"><b' + (nameId ? ' id="' + nameId + '"' : "") + ">" + esc(a.n) + "</b><small>" + esc(a.pl) + "</small></div>" + togHtml(a) + "</div>" +
+        '<div class="acts">' + acts.join("") + "</div></div>";
+    }
+
+    var q = $("q"), results = $("results"), boxes = $("where-to-ask"), nomatch = $("nomatch");
+    function renderMine() {
+      var list = cur(), searching = !!q.value.trim();
+      var differs = shared && shared.join() !== mine.join();
+      $("shared").hidden = !differs;
+      $("keep").hidden = showing !== "shared";
+      $("flip").textContent = showing === "shared" ? "Show mine" : "Show shared";
+      $("my-stack").hidden = !list.length || searching;
+      $("mine-h").textContent = showing === "shared" ? "Shared apps" : "My apps";
+      $("mine-grid").innerHTML = list.map(function (id) { return card(apps[id], true); }).join("");
+      $("saved").hidden = $("clear").hidden = showing === "shared";
+      if (!list.length && !popEl.hidden) pop(false);
+    }
+    function renderSearch() {
+      var text = q.value.trim();
+      boxes.hidden = !!text; results.hidden = !text;
+      if (!text) { results.innerHTML = ""; nomatch.hidden = true; return; }
+      var html = "", hits = 0;
+      STEPS.forEach(function (s) {
+        var its = order.filter(function (id) { return apps[id].st === s[0]; })
+          .map(function (id) { return [fuzzy(text, apps[id].n + " " + id), apps[id]]; })
+          .filter(function (x) { return x[0] > 0; }).sort(function (x, y) { return y[0] - x[0]; });
+        if (!its.length) return;
+        hits += its.length;
+        html += '<h2 class="rh"><span class="dot s-' + s[0] + '" aria-hidden="true"></span>' + s[1] + '</h2><div class="grid">' + its.map(function (x) { return card(x[1], false); }).join("") + "</div>";
+      });
+      results.innerHTML = html;
+      nomatch.hidden = hits > 0;
+    }
+    function syncToggles() {
+      Array.prototype.forEach.call(document.querySelectorAll("[data-t]"), function (b) {
+        var on = has(b.getAttribute("data-t"));
+        b.setAttribute("aria-pressed", on ? "true" : "false");
+        b.textContent = on ? "✓" : "+";
+        var row = b.closest(".row"); if (row) row.classList.toggle("on", on);
+      });
+    }
+    function render() { renderMine(); renderSearch(); syncToggles(); renderGuides(); fades(); }
+
+    var tt;
+    function toast(t) {
+      var e = $("toast"); e.textContent = t; e.classList.add("on");
+      clearTimeout(tt); tt = setTimeout(function () { e.classList.remove("on"); }, 1600);
+    }
+
+    // The full card: a bottom sheet on a phone, a dialog on a computer. Esc, × and a tap outside close it.
+    var sheet = $("sheet"), opener = null;
+    function openCard(id, from) {
+      if (!apps[id]) return;
+      opener = from || null;
+      $("sheet-body").innerHTML = card(apps[id], true, "sheet-name");
+      if (typeof sheet.showModal === "function") { if (!sheet.open) sheet.showModal(); } else sheet.setAttribute("open", "");
+      $("sheet-x").focus();
+    }
+    function closeCard() { if (sheet.open) { if (typeof sheet.close === "function") sheet.close(); else { sheet.removeAttribute("open"); afterClose(); } } }
+    function afterClose() { if (opener && document.body.contains(opener)) opener.focus(); opener = null; }
+    sheet.addEventListener("close", afterClose);
+
+    // Share link: copies the #stack= link and shows it in a popover at the button. "Share" beside it opens the
+    // phone's own share sheet, only where the browser has one.
+    var shareBtn = $("share"), popEl = $("share-pop"), shareUrlEl = $("share-url");
+    function shareUrl() { return window.location.origin + window.location.pathname + "#stack=" + cur().join(","); }
+    function pop(on, copied) {
+      popEl.hidden = !on; shareBtn.setAttribute("aria-expanded", on ? "true" : "false");
+      if (!on) return;
+      var msg = $("share-msg");
+      msg.textContent = "";
+      setTimeout(function () { msg.innerHTML = "<b>" + (copied ? "Link copied." : "Copy this link.") + "</b> Anyone with it sees these apps and where to get help."; }, 30);
+      shareUrlEl.scrollLeft = 0;
+      if (!copied) shareUrlEl.focus();
+    }
+    function copyLink() {
+      var url = shareUrl();
+      shareUrlEl.value = url;
+      var fallback = function () {
+        popEl.hidden = false;
+        shareUrlEl.select();
+        var ok = false;
+        try { ok = document.execCommand("copy"); } catch (e) { ok = false; }
+        pop(true, ok);
+      };
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(url).then(function () { pop(true, true); }, fallback);
+      else fallback();
+    }
+    shareBtn.addEventListener("click", function () { if (popEl.hidden) copyLink(); else pop(false); });
+    shareUrlEl.addEventListener("focus", function () { shareUrlEl.select(); });
+    shareUrlEl.addEventListener("mouseup", function (e) { e.preventDefault(); });
+    $("nshare").hidden = typeof navigator.share !== "function";
+    $("nshare").addEventListener("click", function () {
+      try { navigator.share({ title: "IRL apps", url: shareUrl() }).catch(function () {  }); } catch (e) {  }
+    });
+    document.addEventListener("click", function (e) { if (!popEl.hidden && !e.target.closest(".share-wrap")) pop(false); });
+    document.addEventListener("keydown", function (e) { if (e.key === "Escape" && !popEl.hidden) { pop(false); shareBtn.focus(); } });
+
+    $("clear").addEventListener("click", function () { mine = []; save(); render(); toast("Cleared"); q.focus(); });
+    $("keep").addEventListener("click", function () {
+      mine = mine.concat(shared.filter(function (id) { return mine.indexOf(id) === -1; }));
+      save(); showing = "mine"; shared = null; address(""); render(); toast("Saved as my apps"); $("mine-h").focus();
+    });
+    $("flip").addEventListener("click", function () { showing = showing === "shared" ? "mine" : "shared"; render(); });
+    q.addEventListener("input", function () { renderMine(); renderSearch(); syncToggles(); fades(); });
+
+    page.addEventListener("click", function (e) {
+      var t = e.target.closest("[data-t]");
+      if (t) {
+        var id = t.getAttribute("data-t");
+        var inResults = !!t.closest("#results"), inGrid = t.closest("#mine-grid"), cards = inGrid ? Array.prototype.slice.call(inGrid.children) : [], at = inGrid ? cards.indexOf(t.closest(".card")) : -1;
+        if (showing === "shared") showing = "mine";
+        mine = mine.indexOf(id) !== -1 ? mine.filter(function (x) { return x !== id; }) : mine.concat([id]);
+        save(); render();
+        toast(mine.indexOf(id) !== -1 ? "Added" : "Removed");
+        if (inGrid) {
+          // The card is gone or redrawn: keep the focus on the same place in My apps.
+          var left = $("mine-grid").querySelectorAll(".card .tog");
+          if (!$("my-stack").hidden && left.length) left[Math.min(at, left.length - 1)].focus();
+          else q.focus();
+        } else if (inResults) {
+          var again = results.querySelector('[data-t="' + id + '"]'); if (again) again.focus();
+        }
+        return;
+      }
+      var g = e.target.closest("[data-g]");
+      if (g) {
+        e.preventDefault();
+        closeCard();
+        gf = { src: "", st: "", k: "", app: g.getAttribute("data-g"), mine: false };
+        $("gq").value = "";
+        tab("guides", true); renderGuides(); address(guidesHash(gfHash())); toTop();
+        return;
+      }
+      var o = e.target.closest("[data-open]");
+      if (o) { openCard(o.getAttribute("data-open"), o); return; }
+      if (e.target.closest("#sheet-x")) { closeCard(); return; }
+      if (e.target === sheet) {
+        var box = sheet.getBoundingClientRect();
+        if (e.clientX < box.left || e.clientX > box.right || e.clientY < box.top || e.clientY > box.bottom) closeCard();
+      }
+    });
+
+    // Guides
+    var guides = Array.prototype.map.call(page.querySelectorAll(".gi"), function (li) {
+      return { el: li, own: li.hasAttribute("data-own"), st: li.getAttribute("data-st").split(" ").filter(Boolean), k: li.getAttribute("data-k"),
+        c: li.getAttribute("data-c").split(" ").filter(Boolean), q: li.getAttribute("data-q") };
+    });
+    var gq = $("gq"), sel = $("f-prod");
+    var gf = { src: "", st: "", k: "", app: "", mine: true };
+    var gfHash = function () { return { src: gf.src, st: gf.st, k: gf.k, app: gf.app, q: gq.value.trim() }; };
+    var covered = Array.prototype.map.call(sel.options, function (o) { return o.value; }).filter(Boolean);
+    function chip(attr, key, label, pre) {
+      return '<button type="button" class="chip" ' + attr + '="' + key + '" aria-pressed="false">' + (pre || "") + label + ' <span class="sn"></span></button>';
+    }
+    var BOOK = '<svg class="hi" aria-hidden="true"><use href="#hi-ours"/></svg>';
+    $("f-src").innerHTML = SRC.map(function (s) { return chip("data-fsrc", s[0], s[1], s[0] === "own" ? BOOK : ""); }).join("");
+    $("f-st").innerHTML = STEPS.map(function (s) { return chip("data-fs", s[0], s[1], '<span class="dot s-' + s[0] + '" aria-hidden="true"></span>'); }).join("");
+    $("f-k").innerHTML = KINDS.map(function (k) { return chip("data-fk", k[0], k[1], '<svg class="hi" aria-hidden="true"><use href="#hi-' + (k[0] === "video" ? "video" : "article") + '"/></svg>'); }).join("");
+    $("f-app").insertAdjacentHTML("afterbegin", '<button type="button" class="chip" data-fm="1" aria-pressed="false"><span class="fm-l">My apps</span> <span class="sn"></span></button>');
+
+    function gmatch(g, skip) {
+      var ids = cur(), text = gq.value.trim();
+      if (skip !== "st" && gf.st && g.st.indexOf(gf.st) === -1) return false;
+      if (skip !== "src" && gf.src && (gf.src === "own") !== g.own) return false;
+      if (skip !== "k" && gf.k && g.k !== gf.k) return false;
+      if (skip !== "app" && gf.app && g.c.indexOf(gf.app) === -1) return false;
+      if (skip !== "mine" && gf.mine && ids.length && !g.own && !g.c.some(function (c) { return ids.indexOf(c) !== -1; })) return false;
+      if (text && !fuzzy(text, g.q)) return false;
+      return true;
+    }
+    function cnt(test, skip) { return guides.filter(function (g) { return gmatch(g, skip) && test(g); }).length; }
+    function setChip(b, n, on, show) {
+      b.querySelector(".sn").textContent = n;
+      b.setAttribute("aria-pressed", on ? "true" : "false");
+      b.hidden = !show;
+    }
+    function renderGuides() {
+      var list = cur();
+      Array.prototype.forEach.call(page.querySelectorAll("[data-fsrc]"), function (b) {
+        var k = b.getAttribute("data-fsrc");
+        setChip(b, cnt(function (g) { return (k === "own") === g.own; }, "src"), gf.src === k, true);
+      });
+      Array.prototype.forEach.call(page.querySelectorAll("[data-fs]"), function (b) {
+        var k = b.getAttribute("data-fs"), n = cnt(function (g) { return g.st.indexOf(k) !== -1; }, "st");
+        setChip(b, n, gf.st === k, n > 0 || gf.st === k);
+      });
+      Array.prototype.forEach.call(page.querySelectorAll("[data-fk]"), function (b) {
+        var k = b.getAttribute("data-fk"), n = cnt(function (g) { return g.k === k; }, "k");
+        setChip(b, n, gf.k === k, n > 0 || gf.k === k);
+      });
+      var fm = page.querySelector("[data-fm]");
+      fm.querySelector(".fm-l").textContent = showing === "shared" ? "Shared apps" : "My apps";
+      setChip(fm, cnt(function (g) { return g.c.some(function (c) { return list.indexOf(c) !== -1; }); }, "mine"), gf.mine && list.length > 0, list.length > 0);
+      var opts = '<option value="">Any app</option>';
+      covered.forEach(function (c) {
+        var n = cnt(function (g) { return g.c.indexOf(c) !== -1; }, "app");
+        if (n || gf.app === c) opts += '<option value="' + c + '"' + (gf.app === c ? " selected" : "") + ">" + esc(apps[c] ? apps[c].n : c) + " (" + n + ")</option>";
+      });
+      sel.innerHTML = opts; sel.value = gf.app; sel.classList.toggle("on", !!gf.app);
+      var shown = 0;
+      guides.forEach(function (g) { var ok = gmatch(g); g.el.hidden = !ok; if (ok) shown++; });
+      ["g-own", "g-other"].forEach(function (id) {
+        var h = $(id), ul = h.nextElementSibling;
+        h.hidden = ul.hidden = !ul.querySelector(".gi:not([hidden])");
+      });
+      var any = !!(gf.src || gf.st || gf.k || gf.app || gq.value.trim() || (gf.mine && list.length));
+      $("gcount").textContent = countText(shown, guides.length);
+      $("greset").hidden = !any;
+      $("gnone").hidden = shown > 0;
+    }
+    function guidesChanged() { renderGuides(); if (active === "guides") address(guidesHash(gfHash())); }
+    page.querySelector(".filters").addEventListener("click", function (e) {
+      var b = e.target.closest("button"); if (!b) return;
+      var pairs = [["data-fsrc", "src"], ["data-fs", "st"], ["data-fk", "k"]];
+      for (var i = 0; i < pairs.length; i++) {
+        if (b.hasAttribute(pairs[i][0])) { var v = b.getAttribute(pairs[i][0]); gf[pairs[i][1]] = gf[pairs[i][1]] === v ? "" : v; guidesChanged(); return; }
+      }
+      if (b.hasAttribute("data-fm")) { gf.mine = !gf.mine; guidesChanged(); }
+    });
+    sel.addEventListener("change", function () { gf.app = sel.value; guidesChanged(); });
+    gq.addEventListener("input", guidesChanged);
+    $("greset").addEventListener("click", function () { gf = { src: "", st: "", k: "", app: "", mine: false }; gq.value = ""; guidesChanged(); gq.focus(); });
+
+    // A part box fades at the bottom while more rows follow.
+    function fades() {
+      Array.prototype.forEach.call(page.querySelectorAll(".part-box .rows"), function (r) {
+        r.classList.toggle("more", r.scrollTop + r.clientHeight < r.scrollHeight - 4);
+      });
+    }
+    page.addEventListener("scroll", function (e) { if (e.target.classList && e.target.classList.contains("rows")) fades(); }, true);
+    window.addEventListener("resize", fades);
+
+    function land(hash, first) {
+      var h = parseHash(hash);
+      if (h.stack) {
+        shared = known(h.stack);
+        showing = shared.length && shared.join() !== mine.join() ? "shared" : "mine";
+        if (!shared.length) shared = null;
+      }
+      if (h.f) {
+        gf = { src: h.f.src, st: h.f.st, k: KINDS.some(function (k) { return k[0] === h.f.k; }) ? h.f.k : "", app: covered.indexOf(h.f.app) !== -1 ? h.f.app : "", mine: !h.f.app };
+        gq.value = h.f.q;
+      }
+      var target = h.row ? document.getElementById(h.row) : null;
+      var tabName = h.tab || (target && panels[1].contains(target) ? "guides" : "help");
+      if (h.open && !apps[h.open]) { window.location.replace("links.html#" + h.open); return; }
+      tab(tabName);
+      render();
+      if (target && target !== panels[0]) {
+        if (target.classList.contains("row")) {
+          var box = target.parentNode; box.scrollTop = target.offsetTop - box.offsetTop - 8; fades();
+          target.classList.add("hit"); setTimeout(function () { target.classList.remove("hit"); }, 2400);
+        }
+        target.scrollIntoView({ block: "start", behavior: "instant" });
+      } else if (!first || h.tab) {
+        toTop();
+        // The browser jumps to the old anchor once the page has loaded; the tabs stay in view instead.
+        if (first && document.readyState !== "complete") window.addEventListener("load", function () { window.requestAnimationFrame(function () { toTop(); }); }, { once: true });
+      }
+      if (h.open) openCard(h.open, null);
+    }
+    window.addEventListener("hashchange", function () { land(window.location.hash, false); });
+    land(window.location.hash, true);
+  }
+
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
+  else init();
 })();

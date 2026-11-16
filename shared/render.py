@@ -955,8 +955,8 @@ def fill_services(body: str, services: list[dict]) -> str:
         return '; '.join(groups)
     body = re.sub('<!--services:names:([a-z0-9,-]+)-->', lambda m: names(m.group(1).split(',')), body)
     body = re.sub('<!--services:picks:([a-z0-9,-]+)-->', lambda m: '\n        '.join((service_line(by_id[i], with_extra=False) for i in m.group(1).split(','))), body)
-    if '<!--help:index-->' in body:
-        body = body.replace('<!--help:index-->', help_index_html(GUIDES))
+    if '<!--help:page-->' in body:
+        body = body.replace('<!--help:page-->', help_page_html(services, GUIDES, HELP_OWN))
     if '<!--services:docs-->' in body:
         docs = by_name(s for s in services if s['class'] == 'docs')
         body = body.replace('<!--services:docs-->', ', '.join(f'<a href="{html.escape(s["url"])}">{html.escape(s["name"], quote=False)}</a> ({html.escape(s["description"][0].lower() + s["description"][1:].rstrip("."), quote=False)})' for s in docs))
@@ -1015,93 +1015,186 @@ def standard_users(x: dict, by_id: dict[str, dict], on_links: set[str]) -> tuple
             users.append(link)
     return (users + [html.escape(n, quote=False) for n in x['other_users']], itself)
 
-# ---------- Help: the guide directory (Index B) ----------
-KIND_LABEL = {'article': 'Article', 'video': 'Video', 'docs': 'Docs'}
+# ---------- Help: "My apps" help (Help and Guides tabs) ----------
+# Every app is listed in the HTML, by part and A-Z, with its help channels; every guide is listed in two groups.
+# That is the page without script. site.js adds search, saving apps on the device, the app card, sharing and the
+# guide filters on top of this markup and reads the data from it.
 
-def help_filters(guides: list[dict]) -> list[tuple[str, str, str, str, int]]:
-    out = [('part', f'guides-{k}', label, f'[data-p~="{k}"]', sum((1 for g in guides if k in g['part']))) for k, label, _ in PARTS]
-    out += [('kind', f'kind-{k}', label, f'[data-k="{k}"]', sum((1 for g in guides if g['kind'] == k))) for k, label in (('article', 'Articles'), ('video', 'Videos'), ('docs', 'Docs'))]
-    covered = sorted({c for g in guides for c in g['covers']}, key=lambda c: SERVICES_BY_ID[c]['name'].lower())
-    out += [('product', f'for-{c}', SERVICES_BY_ID[c]['name'], f'[data-c~="{c}"]', sum((1 for g in guides if c in g['covers']))) for c in covered]
-    return [f for f in out if f[4]]
+HELP_STEPS = [('sender', 'Camera and sender'), ('connections', 'Connections'), ('receiver', 'Receiver or cloud'), ('tools', 'OBS and tools')]
 
-def service_href(sid: str) -> str:
-    """Where a product is listed: How to IRL's apps and services, or the building blocks on IRL Commons' Standards."""
-    if SERVICES_BY_ID[sid]['class'] == 'building-block':
-        return f'https://irlcommons.org/existing-formats.html#block-{sid}'
-    return f'links.html#{sid}' if SERVICES_BY_ID[sid]['class'] in STREAMER_CLASSES else html.escape(SERVICES_BY_ID[sid]['url'])
+HELP_STEP = {'camera': 'sender', 'sender': 'sender', 'connections': 'connections', 'receiver': 'receiver', 'platform': 'receiver', 'obs': 'tools'}
 
-def guide_row(g: dict, repeated: bool=False) -> str:
+HELP_PLATFORM = {'android': 'Android', 'ios': 'iPhone', 'ipad': 'iPad', 'windows': 'Windows', 'macos': 'Mac', 'linux': 'Linux', 'web': 'Browser', 'service': 'Online', 'hardware': 'Hardware'}
+
+HELP_KIND = {'article': 'Article', 'video': 'Video', 'docs': 'Docs'}
+
+HELP_KINDS = [('article', 'Articles'), ('video', 'Videos'), ('docs', 'Docs')]
+
+# Channel order on a card: Discord, forum, help, contact. GitHub shows only when it is the only way to ask.
+HELP_CHANNELS = ['Discord', 'Forum', 'Help', 'Contact', 'GitHub']
+
+HELP_LINK_WORDS = ('docs', 'wiki', 'knowledge base', 'guides')
+
+# The site's own pages in the Guides tab; set by the site's prepare step (howtoirl.org only).
+HELP_OWN: list[dict] = []
+
+def help_icon(name: str) -> str:
+    return f'<svg class="hi" aria-hidden="true"><use href="#hi-{"article" if name == "docs" else name}"/></svg>'
+
+HELP_SPRITE = ('<svg width="0" height="0" class="vh" aria-hidden="true">'
+               '<symbol id="hi-video" viewBox="0 0 24 24"><path d="M8 5.5v13l10.5-6.5z" fill="currentColor"/></symbol>'
+               '<symbol id="hi-article" viewBox="0 0 24 24"><path d="M6 3h9l3 3v15H6z M9 10h6M9 14h6M9 18h4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>'
+               '<symbol id="hi-ours" viewBox="0 0 24 24"><path d="M4 5.5C6.5 4.5 9.5 4.5 12 6c2.5-1.5 5.5-1.5 8-.5V19c-2.5-1-5.5-1-8 .5-2.5-1.5-5.5-1.5-8-.5z M12 6v13.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></symbol>'
+               '<symbol id="hi-search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="2.2"/><path d="M20 20l-4.8-4.8" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></symbol>'
+               '<symbol id="hi-share" viewBox="0 0 24 24"><path d="M12 15V3M7 8l5-5 5 5M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>'
+               '</svg>')
+
+def help_step(s: dict) -> str:
+    """The colour box an app sits in: remote control, chat and the platforms join OBS and tools."""
+    if s['role'] in ('remote-control', 'chat-overlays') or s['id'] == 'twitch':
+        return 'tools'
+    return HELP_STEP[s['part'][0]] if s['part'] else 'tools'
+
+def help_listed(s: dict) -> bool:
+    return s['kind'] != 'community' and s['class'] not in ('docs', 'building-block')
+
+def channel_type(label: str, url: str) -> str:
+    l, u = label.lower(), url.lower()
+    if 'discord' in l or 'discord' in u:
+        return 'Discord'
+    if 'github.com' in u and ('issues' in l or '/issues' in u):
+        return 'GitHub'
+    if any(k in l for k in ('forum', 'discussions', 'community', 'reddit')):
+        return 'Forum'
+    if any(k in l for k in ('docs', 'help', 'knowledge base', 'readme', 'wiki', 'guide', 'faq', 'support')):
+        return 'Help'
+    if 'github.com' in u:
+        return 'GitHub'
+    return 'Contact'
+
+def help_channels(s: dict) -> list[tuple[str, str]]:
+    """Where to ask, best first: one button per type, GitHub only when it is the only way. The website is the fallback."""
+    pool = channels(s) + [l for l in s['links'] if any(k in l['label'].lower() for k in HELP_LINK_WORDS)]
+    seen, out = set(), []
+    for c in pool:
+        if c['url'] not in seen:
+            seen.add(c['url'])
+            out.append((channel_type(c['label'], c['url']), c['url']))
+    out.sort(key=lambda c: HELP_CHANNELS.index(c[0]))
+    asked = [c for c in out if c[0] != 'GitHub']
+    out = asked or out[:1]
+    types: set[str] = set()
+    return [c for c in out if not (c[0] in types or types.add(c[0]))]
+
+def help_initials(name: str) -> str:
+    words = [w for w in re.split(r'[\s.]+', re.sub(r'[^A-Za-z0-9+ .]', '', name)) if w]
+    return (words[0][0] + words[1][0] if len(words) > 1 else name[:2]).upper()
+
+def help_platforms(s: dict) -> list[str]:
+    return [HELP_PLATFORM[p] for p in s['platforms'] if p in HELP_PLATFORM]
+
+def help_apps(services: list[dict]) -> list[dict]:
+    return sorted((s for s in services if help_listed(s)), key=lambda s: s['name'].lower())
+
+def help_row(s: dict, guides: int) -> str:
     esc = lambda t: html.escape(t, quote=False)
-    title = f"{g['title_display']} (“{g['title']}”)" if repeated else g['title_display']
-    kind = KIND_LABEL[g['kind']]
-    site = site_name(g['url'])
-    names = [SERVICES_BY_ID[c]['name'] for c in g['covers']]
-    parts = list(dict.fromkeys(g['part']))
-    hay = ' '.join([g['title_display'], g['title'], g['creator'], site, kind, *names, *(PART_LABEL[p] for p in parts)]).lower()
+    sid, name, st = s['id'], esc(s['name']), help_step(s)
+    pl = help_platforms(s)
+    chans = help_channels(s)
+    links = [(t, u) for t, u in chans] + ([('Website', s['url'])] if s['url'] else [])
+    best = links[0] if links else None
+    rest = ''.join(f'<a href="{html.escape(u)}" data-ct="{t}"{" data-best" if (t, u) == best else ""}>{t}</a>' for t, u in links)
+    if guides:
+        rest += f'<a href="#for-{sid}" data-g="{sid}">{guides} guide{"s" if guides != 1 else ""}</a>'
+    button = f'<a class="rb" href="{html.escape(best[1])}">{best[0]}</a>' if best else ''
+    return (f'<li class="row" id="app-{sid}" data-id="{sid}" data-st="{st}" data-pl="{esc(" · ".join(pl))}">'
+            f'<span class="tile sm s-{st}" aria-hidden="true">{esc(help_initials(s["name"]))}</span>'
+            f'<span class="rn"><span class="rn-n">{name}</span><small>{esc(" · ".join(pl[:3]))}</small><span class="row-x">{rest}</span></span>'
+            f'{button}<button type="button" class="tog sm" data-t="{sid}" aria-pressed="false" aria-label="Add {html.escape(s['name'])} to my apps" hidden>+</button></li>')
+
+def help_apps_html(services: list[dict], guides: list[dict]) -> str:
+    apps = help_apps(services)
+    count = {s['id']: sum(1 for g in guides if s['id'] in g['covers']) for s in apps}
+    boxes = []
+    for st, label in HELP_STEPS:
+        its = [s for s in apps if help_step(s) == st]
+        rows = ''.join(help_row(s, count[s['id']]) for s in its)
+        boxes.append(f'<section class="part-box" data-st="{st}" aria-labelledby="box-{st}"><h2 class="bar s-{st}" id="box-{st}" data-permalink="no">'
+                     f'<span>{html.escape(label, quote=False)}</span> <span class="bn"><span class="vh">(</span>{len(its)}<span class="vh"> apps)</span></span></h2>'
+                     f'<ul class="rows">{rows}</ul></section>')
+    return '<div class="part-boxes" id="where-to-ask">' + ''.join(boxes) + '</div>'
+
+def help_guide_steps(g: dict) -> list[str]:
+    return list(dict.fromkeys(HELP_STEP[p] for p in g['part']))
+
+def help_guide_html(g: dict, titles: list[str], listed: dict[str, dict]) -> str:
+    esc = lambda t: html.escape(t, quote=False)
+    st = help_guide_steps(g)
+    cov = [c for c in g['covers'] if c in listed]
+    names = [listed[c]['name'] for c in cov]
+    orig = f'“{esc(g["title"])}” · ' if titles.count(g['title_display']) > 1 else ''
+    by = f'{orig}{HELP_KIND[g["kind"]]} · {esc(g["creator"] or "")}'
+    tags = ''.join(f'<span><span class="dot s-{help_step(listed[c])}" aria-hidden="true"></span>{esc(listed[c]["name"])}</span>' for c in cov)
+    gt = f'<span class="gt">{tags}</span>' if tags else ''
     m = GUIDE_THUMBS.get(g['id'])
-    lead = f'<svg class="ix-icon" aria-hidden="true"><use href="#{"i-play" if g["kind"] == "video" else "i-doc"}"/></svg>'
-    thumb = (f'<a class="ix-thumb" href="{html.escape(g["url"])}" tabindex="-1" aria-hidden="true"><img src="assets/thumbs/{html.escape(m["file"])}" '
+    thumb = (f'<a class="th" href="{html.escape(g["url"])}" tabindex="-1" aria-hidden="true"><img src="assets/thumbs/{html.escape(m["file"])}" '
              f'width="{m["width"]}" height="{m["height"]}" alt="" loading="lazy" decoding="async"></a>') if m else ''
-    chips = ''.join(f'<span class="pchip">{esc(PART_LABEL[p])}</span>' for p in parts)
-    date = long_date(g['published']) if g.get('published') else 'Not given on the page'
-    facts = [('Original title', f"“{esc(g['title'])}”"), ('By', esc(g['creator']))]
-    if g['language'] != 'en':
-        facts.append(('Language', LANGUAGE_NAME.get(g['language'], g['language'])))
-    if g.get('published'):
-        facts.append(('Published', date))
-    facts.append(('About', ', '.join(f'<a href="{service_href(c)}">{esc(SERVICES_BY_ID[c]["name"])}</a>' for c in g['covers'])))
-    if m:
-        facts.append(('Thumbnail', esc(m['credit'])))
-    dl = ''.join((f'<div><dt>{k}</dt><dd>{v}</dd></div>' for k, v in facts))
-    return (f'<li class="ix-row{" has-thumb" if m else ""}" id="{g["id"]}" data-p="{" ".join(parts)}" data-c="{" ".join(g["covers"])}" data-k="{g["kind"]}" data-search="{html.escape(hay)}">'
-            f'<div class="ix-line">{lead}<span class="ix-kind">{kind}</span><span class="ix-tcell">{thumb}<a class="ix-title" href="{html.escape(g["url"])}">{esc(title)}</a></span><span class="ix-chips">{chips}</span></div>'
-            f'<details class="ix-more"><summary><span class="vh">Details: {esc(title)}</span></summary><div class="ix-body"><dl class="ix-facts">{dl}</dl>'
-            f'<p class="edit-line">{edit_icon("guides", g["id"], g["title_display"])}</p></div></details></li>')
+    hay = ' '.join([g['title_display'], g['title'], g['creator'] or '', *names])
+    return (f'<li class="gi" id="{g["id"]}" data-st="{" ".join(st)}" data-k="{g["kind"]}" data-c="{" ".join(cov)}" data-q="{html.escape(hay)}">'
+            f'<span class="tile s-{st[0] if st else "tools"}" aria-hidden="true">{help_icon(g["kind"])}</span>'
+            f'<span class="tx"><a class="tt" href="{html.escape(g["url"])}">{esc(g["title_display"])}</a><span class="by">{by}</span>'
+            f'{gt}</span>{thumb}</li>')
 
-def help_index_html(guides: list[dict]) -> str:
+def help_own_html(p: dict) -> str:
     esc = lambda t: html.escape(t, quote=False)
-    filters = help_filters(guides)
-    marks = '<span class="fm" id="guides"></span>' + ''.join((f'<span class="fm" id="{fid}"></span>' for _, fid, _, _, _ in filters))
-    chain = ''.join(f'<li><a class="cstep" href="#{fid}" data-f="{fid}"><svg class="pi" aria-hidden="true"><use href="#p-{fid[7:]}"/></svg><span class="sl">{esc(label)}</span><span class="sn">{n}</span></a></li>'
-                    for grp, fid, label, _, n in filters if grp == 'part')
-    kinds = ''.join(f'<li><a class="fchip" href="#{fid}" data-f="{fid}"><svg class="ki" aria-hidden="true"><use href="#{"i-play" if fid.endswith("video") else "i-doc"}"/></svg>{esc(label)} <span class="sn">{n}</span></a></li>'
-                    for grp, fid, label, _, n in filters if grp == 'kind')
-    products = ''.join(f'<li><a class="fchip" href="#{fid}" data-f="{fid}">{esc(label)} <span class="sn">{n}</span></a></li>'
-                       for grp, fid, label, _, n in filters if grp == 'product')
-    notes = ''.join((f'<p class="fnote" data-f="{fid}">{esc(label)}: {n} guide{"s" if n != 1 else ""}. <a href="#guides" class="filter-reset">Clear filters</a></p>' for _, fid, label, _, n in filters))
-    titles = [g['title_display'] for g in guides]
-    rows = '\n        '.join((guide_row(g, titles.count(g['title_display']) > 1) for g in guides_in_order(guides)))
-    total = len(guides)
-    return f"""    <section class="part ix" aria-labelledby="guides-h">
-      <h2 id="guides-h" class="vh">Guide directory</h2>
-      <div class="fmarks">{marks}</div>
-      <div class="ix-filters" id="ix-filters">
-        <nav class="chainmap compact" aria-label="Filter by part of the chain"><p class="fh">Where in the chain?</p><ol>{chain}</ol></nav>
-        <div class="ix-row2">
-          <nav class="fgroup" aria-label="Filter by kind"><p class="fh">Kind</p><ul class="fchips">{kinds}</ul></nav>
-          <div class="fgroup"><p class="fh" id="by-product-h">Product</p><details class="fprod" id="by-product"><summary aria-describedby="by-product-h"><span class="fsum">All products</span><span class="fcur"></span></summary><ul class="fchips">{products}</ul></details></div>
-          <p class="search-field ix-search" id="dir-search" hidden><label for="dir-q" class="fh">Search</label> <input type="search" id="dir-q" autocomplete="off" spellcheck="false"></p>
-        </div>
-      </div>
-      <div class="fnotes" role="status"><p class="fnote fnote-all">Showing all {total} guides.</p>{notes}<p class="fnote fnote-js" id="dir-count" hidden></p></div>
-      <ul class="ix-rows">
-        {rows}
-      </ul>
-    </section>"""
+    return (f'<li class="gi" id="h-{p["id"]}" data-own="" data-st="{p["step"]}" data-k="ours" data-c="" data-q="{html.escape(p["title"] + " " + p["sub"])}">'
+            f'<span class="tile s-{p["step"]}" aria-hidden="true">{help_icon("ours")}</span>'
+            f'<span class="tx"><a class="tt" href="{html.escape(p["href"])}">{esc(p["title"])}</a><span class="by">{esc(p["sub"])}</span><span class="gt"></span></span></li>')
 
-def help_filters_css(guides: list[dict]) -> str:
-    """Generated: without script, the filter whose anchor is the :target hides the rows that don't match, marks itself and shows its note.
-    With script (.ix-js), site.js filters and combines them instead."""
-    rules = ['/* Guide filters, derived from upstream data. */', '.fnote:not(.fnote-all) { display: none; }', '.fnote-js:not([hidden]) { display: block; }', '@supports selector(:has(a)) {',
-             '  .help-page:has(.fm:not(#guides):target) .fnote-all { display: none; }']
-    for group, fid, label, match, _ in help_filters(guides):
-        on = f'.help-page:not(.ix-js):has(#{fid}:target)'
-        rules += [f'  {on} .ix-row:not({match}) {{ display: none; }}',
-                  f'  {on} a[data-f="{fid}"] {{ border-color: var(--fg); background: var(--sunk); box-shadow: inset 0 -3px 0 var(--fg); }}',
-                  f'  {on} .fnote[data-f="{fid}"] {{ display: block; }}']
-        if group == 'product':
-            rules.append(f"""  {on} #by-product .fcur::before {{ content: "{label.replace(chr(92), '').replace(chr(34), '')}"; }}""")
-            rules.append(f'  {on} #by-product .fsum {{ display: none; }}')
-    rules.append('}')
-    return '\n'.join(rules) + '\n'
+def help_guides_html(services: list[dict], guides: list[dict], own: list[dict]) -> str:
+    listed = {s['id']: s for s in services if help_listed(s)}
+    titles = [g['title_display'] for g in guides]
+    covered = sorted({c for g in guides for c in g['covers'] if c in listed}, key=lambda c: listed[c]['name'].lower())
+    # Older addresses land here: #for-<app>, #guides-<part> and #kind-<kind> (site.js turns them into filters).
+    marks = ''.join(f'<span class="fm" id="{i}"></span>' for i in [*(f'for-{c}' for c in covered), *(f'guides-{k}' for k, _, _ in PARTS),
+                                                                   *(f'guides-{k}' for k, _ in HELP_STEPS if k not in PART_LABEL), *(f'kind-{k}' for k, _ in HELP_KINDS)])
+    total = len(guides) + len(own)
+    return (f'<div class="fmarks">{marks}</div>'
+            f'<div class="search" hidden><label class="sbox">{help_icon("search")}<span class="vh">Search guides</span><input id="gq" type="search" placeholder="Search guides" autocomplete="off" spellcheck="false"></label></div>'
+            '<div class="filters" hidden>'
+            '<div class="fg" role="group" aria-labelledby="fl-src"><span class="fl" id="fl-src">From</span><div class="frow" id="f-src"></div></div>'
+            '<div class="fg" role="group" aria-labelledby="fl-st"><span class="fl" id="fl-st">Part</span><div class="frow" id="f-st"></div></div>'
+            '<div class="fg" role="group" aria-labelledby="fl-k"><span class="fl" id="fl-k">Kind</span><div class="frow" id="f-k"></div></div>'
+            '<div class="fg" role="group" aria-labelledby="fl-app"><span class="fl" id="fl-app">App</span><div class="frow" id="f-app">'
+            '<label class="sel"><span class="vh">App</span><select id="f-prod"><option value="">Any app</option>'
+            + ''.join(f'<option value="{c}">{html.escape(listed[c]["name"], quote=False)}</option>' for c in covered) +
+            '</select></label></div></div></div>'
+            f'<p class="gcount"><span id="gcount" role="status">All {total} guides</span> <button type="button" class="lnk" id="greset" hidden>Clear filters</button></p>'
+            f'<h3 class="gh" id="g-own" data-permalink="no">{help_icon("ours")}How to IRL</h3><ul class="glist" aria-labelledby="g-own">{"".join(help_own_html(p) for p in own)}</ul>'
+            f'<h3 class="gh" id="g-other" data-permalink="no">Apps and community</h3><ul class="glist" aria-labelledby="g-other">{"".join(help_guide_html(g, titles, listed) for g in guides)}</ul>'
+            '<p class="empty" id="gnone" hidden>No guide matches.</p>')
+
+def help_page_html(services: list[dict], guides: list[dict], own: list[dict]) -> str:
+    """The Help page body under its h1: tabs, the Help tab (search, My apps, the four part boxes) and the Guides tab."""
+    sug = 'https://github.com/irl-commons/irl-commons/issues/new?template=new-entry.yml&amp;title=Suggest%3A%20new%20entry&amp;description=An%20entry%20for%20the%20How%20to%20IRL%20directory'
+    return (HELP_SPRITE +
+            '<nav class="tabs" aria-label="Help and guides"><a href="#start-here" id="t-help">Help</a><a href="#guides" id="t-guides">Guides</a></nav>'
+            '<section class="tab-panel" id="start-here" aria-labelledby="t-help">'
+            '<div class="search" hidden><label class="sbox">' + help_icon('search') + '<span class="vh">Find your app</span><input id="q" type="search" placeholder="Find your app" autocomplete="off" spellcheck="false"></label></div>'
+            '<div class="banner" id="shared" hidden><b>Apps shared with you</b><button type="button" class="p" id="keep">Keep as mine</button><button type="button" id="flip">Show mine</button></div>'
+            '<section class="mine" id="my-stack" hidden aria-labelledby="mine-h"><h2 id="mine-h" tabindex="-1" data-permalink="no">My apps</h2><div class="grid" id="mine-grid"></div>'
+            '<div class="mine-bar"><span class="share-wrap"><button type="button" id="share" aria-expanded="false" aria-controls="share-pop">Share link</button>'
+            '<span class="pop" id="share-pop" hidden><span class="pop-t" id="share-msg" role="status"></span>'
+            '<input type="url" id="share-url" readonly aria-label="Link to these apps"></span></span>'
+            '<button type="button" id="nshare" hidden>' + help_icon('share') + 'Share</button>'
+            '<span id="saved">Saved on this device</span><button type="button" class="lnk" id="clear">Clear</button></div></section>'
+            '<div id="results" hidden></div>'
+            + help_apps_html(services, guides) +
+            f'<p class="empty" id="nomatch" hidden>No app found. <a href="{sug}">Suggest it</a></p>'
+            f'<p class="commons-teaser" id="listed"><a href="{sug}">Missing an app, a service or a guide?</a></p>'
+            '</section>'
+            '<section class="tab-panel" id="guides" aria-labelledby="t-guides"><h2 class="nojs-h">Guides</h2>'
+            + help_guides_html(services, guides, own) +
+            '</section>'
+            '<dialog class="sheet" id="sheet" aria-labelledby="sheet-name"><button type="button" class="sx" id="sheet-x" aria-label="Close">×</button><div id="sheet-body"></div></dialog>'
+            '<p class="toast" id="toast" role="status"></p>')

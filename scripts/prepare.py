@@ -33,6 +33,5 @@ for src in (ROOT/'content').glob('*.html'):
  rendered[src.name]=r.add_permalinks(body)
 (ROOT/'.generated').mkdir(exist_ok=True)
 (ROOT/'.generated/content.json').write_text(json.dumps(rendered,ensure_ascii=False))
-(ROOT/'public/assets/help-filters.css').write_text(r.help_filters_css(data['guides']))
 if 'links.html' in json.loads((ROOT/'site.json').read_text())['pages']:
  (ROOT/'public/assets/links-filters.css').write_text(r.links_filters_css(data['services']))
