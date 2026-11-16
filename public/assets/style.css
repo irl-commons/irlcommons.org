@@ -151,7 +151,7 @@ code { font-family: var(--mono); font-size: 0.88em; background: var(--sunk); bor
   .page-head > :last-child { margin-bottom: 0; }
   .toc { margin-bottom: var(--s3); }
 }
-@media (max-width: 999px) { .toc li { white-space: nowrap; } .toc li a { display: inline-block; padding: 6px 0; } .links .toc li { display: block; } .links .toc li + li::before { content: none; } .links .toc li a { padding: 4px 0; } }
+@media (max-width: 999px) { .toc li { white-space: nowrap; } .toc li a { display: inline-block; max-width: 100%; white-space: normal; padding: 6px 0; } .links .toc li { display: block; } .links .toc li + li::before { content: none; } .links .toc li a { padding: 4px 0; } }
 .toc .label { display: none; }
 .toc li { display: inline; }
 .toc li + li::before { content: " · "; color: var(--muted); }
