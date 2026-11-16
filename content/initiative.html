@@ -22,18 +22,18 @@
       <ul class="hard">
         <li>
           <h3>Moving between devices</h3>
-          <p>With open tools, moving a live stream from one device to another without it starting over still means connecting things by hand.</p>
+          <p>With open tools, moving a live stream to another device without it starting over still means connecting things by hand.</p>
           <details class="more">
             <summary>What already does part of this: OBS, TVU Go, cloud production, IRL+'s Video Mixer</summary>
             <p>OBS can switch between a desk and a phone feed. TVU Go advertises moving from desktop to IRL. Cloud production can take several inputs on the bigger plans. IRL+'s Video Mixer (in closed beta) puts several cameras and a phone feed into one picture on a BELABOX box.</p>
           </details>
         </li>
-        <li><h3>Few maintainers</h3><p>Much of this depends on a few people, often working in their free time. You can sponsor them, write clear bug reports or send fixes.</p></li>
-        <li><h3>Anyone can reuse open source</h3><p>That is the idea of open source, and it is also a risk. Moblin uses the MIT licence: anyone may build its code into a closed, paid app. BELABOX's encoder and control screen use the GPL, and <code>srtla</code> uses the AGPL. Whoever ships a changed copy of those has to share its source with the people who get it. None of these licences makes anyone send their fixes back. The licence decides whether changed copies stay open.</p></li>
-        <li><h3>Everyone can build their own now</h3><p>With AI coding tools, it keeps getting easier to build your own app, overlay or relay. That's good for trying ideas. But it also means more small tools that do nearly the same thing. Each has its own setup and its own words for what's happening.</p></li>
-        <li><h3>Passwords</h3><p>Some setups need several logins. A hotspot's admin page may still have its default password. Local pages may show "Not secure" warnings because of self-signed certificates. Streamers are busy, and passwords leak on stream. In a collab, streamers put their stream key into another streamer's server and trust that nobody goes live on their channel by accident after the collab.</p></li>
-        <li><h3>Online services get attacked</h3><p>Shared servers can fail. They also face attacks, floods of traffic and break-in attempts, more and more of them automated. When a shared service is down, everyone who uses it is affected.</p></li>
-        <li class="wide"><h3>Each project on its own</h3><p>Each project has its own community, with its own chat, docs and issue tracker. So advice on the same questions is spread across all of them: which modem, which SIM, why did my stream drop. Even names collide: How to IRL lists two unrelated projects called OpenIRL. If the projects shared a few standards and what they learn, each could keep its own focus. Streamers could then mix and swap apps and devices without starting over.</p></li>
+        <li><h3>Few maintainers</h3><p>Many open tools depend on a few people, often working in their free time. You can sponsor them, write clear bug reports or send fixes.</p></li>
+        <li><h3>Anyone can reuse open source</h3><p>Moblin uses the MIT licence: anyone may build its code into a closed, paid app. BELABOX's encoder and control screen use the GPL, and <code>srtla</code> the AGPL: whoever ships a changed copy has to share its source with the people who get it. None of these licences makes anyone send their fixes back.</p></li>
+        <li><h3>Everyone can build their own now</h3><p>With AI coding tools, it keeps getting easier to build your own app, overlay or relay. That's good for trying ideas, but it means more small tools that do nearly the same thing, each with its own setup and its own words for what's happening.</p></li>
+        <li><h3>Passwords</h3><p>Some setups need several logins. A hotspot's admin page may still have its default password. Local pages may show "Not secure" warnings because of self-signed certificates. Streamers are busy, and passwords leak on stream. In a collab, streamers put their stream key into another streamer's server and trust that nobody goes live on their channel by accident afterwards.</p></li>
+        <li><h3>Online services get attacked</h3><p>Shared servers can fail, and they face attacks, floods of traffic and break-in attempts, more and more of them automated. When one is down, everyone who uses it is affected.</p></li>
+        <li class="wide"><h3>Each project on its own</h3><p>Each project has its own chat, docs and issue tracker, so advice on the same questions is spread across all of them: which modem, which SIM, why did my stream drop. Even names collide: How to IRL lists two unrelated projects called OpenIRL. If the projects shared a few standards and what they learn, each could keep its own focus, and streamers could mix and swap apps and devices without starting over.</p></li>
       </ul>
     </section>
 
@@ -42,13 +42,13 @@
       <ol class="ideas">
         <li>
           <h3>Start with the streamer's day</h3>
-          <p>Plan from what a streamer does during the day, not from the tech and its features. The stream should move with you between your devices without starting over, and without chat looking at a waiting screen. <a href="#one-show">One show</a> below shows how.</p>
-          <p>The tech shouldn't be the stressful part. While you're live, you get a clear message. You also get a fix that says what it costs you, like a few seconds of your "be right back" screen. The explanation can wait until after the stream.</p>
+          <p>Plan from what a streamer does during the day, not from the tech. The stream should move with you between your devices without starting over, and without chat looking at a waiting screen. <a href="#one-show">One show</a> below shows how.</p>
+          <p>While you're live, you get a clear message and a fix that says what it costs you, like a few seconds of your "be right back" screen. The explanation can wait until after the stream.</p>
         </li>
         <li>
           <h3>Make apps and devices work as one</h3>
           <p>Existing projects already do the hard parts: Moblin for the iPhone, CeraLive for a backpack, Moblink for spare phones. Build on them instead of starting over, and send fixes back to those projects first.</p>
-          <p>Setup should be secure without passwords to remember. For example, you pair a phone with a tap and a matching code.</p>
+          <p>Setup should be secure without passwords to remember: you pair a phone with a tap and a matching code.</p>
         </li>
         <li>
           <h3>Shared standards</h3>
@@ -106,13 +106,13 @@
         <li><span class="node">Twitch<span class="vh">:</span></span><span class="says">offline<span class="vh">.</span></span><span class="knows">no stream coming in</span></li>
       </ol>
       <div class="read">
-        <p>In this example, Moblin sends your picture to a relay. A relay is a service that receives your stream and passes it on. Then OBS on a cloud computer turns it into the show for Twitch and YouTube. You start the stream in Moblin, and it shows you're live. That's true: your phone is streaming to your relay. But the cloud OBS hasn't finished starting, so nothing reaches Twitch yet. Or OBS is running and taking your feed, but it still shows your starting scene. Or Twitch is fine, but the second feed to YouTube has stopped and you didn't notice.</p>
-        <p>Each app is right about its own part. Moblin can also connect to OBS's remote control and show OBS's scene and whether OBS is streaming. But it can't see every place OBS sends to, or a relay it doesn't run. So to find out what viewers actually get, the streamer may have to check several places. To do that, they have to understand the whole setup.</p>
+        <p>In this example, Moblin sends your picture to a relay, a service that receives your stream and passes it on. Then OBS on a cloud computer turns it into the show for Twitch and YouTube. Moblin shows you're live, and that's true: your phone is streaming to your relay. But the cloud OBS hasn't finished starting, so nothing reaches Twitch yet. Or OBS is taking your feed but still shows your starting scene. Or Twitch is fine, but the second feed to YouTube has stopped and you didn't notice.</p>
+        <p>Each app is right about its own part. Moblin can also connect to OBS's remote control and show OBS's scene and whether it is streaming, but it can't see every place OBS sends to, or a relay it doesn't run. To find out what viewers actually get, the streamer may have to check several places, and understand the whole setup to do it.</p>
       </div>
 
       <div class="concept-example">
       <h3 class="story-h">A full picture in one place</h3>
-      <p class="read">If each app reported what it's doing in the same words, your phone could collect those reports. It could then show you the real status, including where the stream stops.</p>
+      <p class="read">If each app reported what it's doing in the same words, your phone could collect those reports and show you the real status, including where the stream stops.</p>
       <div class="screens concept">
         <figure>
           <div class="phone" role="img" aria-label="Phone screen: Sending to your relay. Starting: cloud OBS is still starting, nothing reaches Twitch yet. Your phone keeps sending to your relay.">
@@ -136,7 +136,7 @@
       </div>
 
       <h3 class="story-h">Why it matters</h3>
-      <p class="read">This may be why many people buy a ready-made kit from one company. That company makes every part, so one screen can show you how it's going. Separate tools might each do their own job better. If open apps and devices used the same words for what's happening, they could have that one screen too.</p>
+      <p class="read">This may be why many people buy a ready-made kit from one company: it makes every part, so one screen can show you how it's going. Separate tools might each do their own job better. If open apps and devices used the same words for what's happening, they could have that one screen too.</p>
     </section>
 
         <section class="part" id="screens" aria-labelledby="screens-h">
