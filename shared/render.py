@@ -377,14 +377,14 @@ def compare_tables(standards: list[dict]) -> str:
         cells += [f"<td>{compact(tn, t['ingest'][k]['value'], t['ingest'][k])}</td>" for k, _ in PLATFORMS]
         rows.append(row_head(x) + ''.join(cells))
     transports = [x for x in standards if 'transport' in x]
-    out.append(table('compare-transports', 'Ways to send a stream compared', "How each protocol gets a stream from the phone or box to the next step. Where a platform doesn't take one, a relay or production service turns it into RTMP.", f'{row_names(transports)}, side by side: whether they can be bonded, licence, delay, how they recover lost packets, and which platforms take them.', TRANSPORT_HEADERS, rows, tn))
+    out.append(table('compare-transports', 'Ways to send a stream compared', "How each protocol gets a stream from the phone or box to the next step. Where a platform doesn't take one, a receiver or production service turns it into RTMP.", f'{row_names(transports)}, side by side: whether they can be bonded, licence, delay, how they recover lost packets, and which platforms take them.', TRANSPORT_HEADERS, rows, tn))
     return '\n\n'.join(out)
 
 WORDS_FOR_CHECK: list[dict] = []
 
 GUIDES: list[dict] = []
 
-GUIDE_GROUPS = [('camera', 'Camera into the sender'), ('sender', 'Sending from the phone or box'), ('connections', 'Connections and bonding'), ('receiver', 'Receivers and relays'), ('obs', 'Into OBS'), ('platform', 'Going out to the platform')]
+GUIDE_GROUPS = [('camera', 'Camera into the sender'), ('sender', 'Sending from the phone or box'), ('connections', 'Connections and bonding'), ('receiver', 'Receivers'), ('obs', 'Into OBS'), ('platform', 'Going out to the platform')]
 
 def guide_meta(g: dict, with_creator: bool=False) -> str:
     kind = 'video' if g['kind'] == 'video' else 'article'
@@ -448,7 +448,7 @@ SITE_SUPPORT_EXTRA = {'irlplus-cast': [{'label': 'IRL+ Discord', 'url': 'https:/
 
 SITE_HOME = {'moblink': ('https://discord.gg/kh3KMng4JV', "on Moblin's Discord, in #tech-support-forum")}
 
-ROLE_CHIP = {'streaming-app': 'Streaming app', 'extra-connections': 'Extra connection', 'camera-capture': 'Camera and capture', 'remote-control': 'Remote control', 'chat-overlays': 'Chat, alerts and overlays', 'other-app': 'Other app', 'relay': 'Relay or receiver', 'hub': 'Hosted hub', 'production': 'Production and OBS', 'hardware': 'Hardware', 'community': 'Community and docs'}
+ROLE_CHIP = {'streaming-app': 'Streaming app', 'extra-connections': 'Extra connection', 'camera-capture': 'Camera and capture', 'remote-control': 'Remote control', 'chat-overlays': 'Chat, alerts and overlays', 'other-app': 'Other app', 'relay': 'Receiver', 'hub': 'Hosted hub', 'production': 'Production and OBS', 'hardware': 'Hardware', 'community': 'Community and docs'}
 
 PARTS = [('camera', 'Camera and mic', 'what you film and hear'), ('sender', 'Sender', 'the app or box that encodes and sends'), ('connections', 'Connections', 'mobile data, Wi-Fi, hotspots'), ('receiver', 'Receiver', 'joins bonded connections back together'), ('obs', 'OBS', 'your scenes, switching and BRB'), ('platform', 'Platform', 'Twitch, YouTube, Kick and the rest')]
 
@@ -857,7 +857,7 @@ CLASS_SECTIONS = [
     ('phone-app', 'phone-apps', 'Phone streaming apps', 'The app on your phone that films and sends your stream.'),
     ('helper-app', 'helper-apps', 'Helper apps', 'Small apps around the stream: chat, sharing your location, remote control, a camera into the phone.'),
     ('connections', 'connections', 'More connections', 'Add another network to your stream, so one weak signal doesn’t end it.'),
-    ('bonding', 'bonding', 'Bonding and relays', 'A bonded stream leaves over several connections. A receiver or relay joins it back together and passes it on to OBS or the platform.'),
+    ('bonding', 'bonding', 'Bonding and receivers', 'A bonded stream leaves over several connections. A receiver joins it back together and passes it on to OBS or the platform.'),
     ('hardware', 'hardware', 'Backpacks and encoders', 'A box that encodes and sends over several modems, and takes a standalone camera. Ready-made, or a kit you build.'),
     ('parts', 'parts', 'Parts and add-ons', 'Extras for a box or backpack you already have.'),
     ('store', 'stores', 'Shops', 'Where to buy built backpacks, cases and parts.'),
@@ -994,7 +994,7 @@ def building_blocks_html(services: list[dict]) -> str:
                     + (f' <span class="tag">{esc(s["licence"])}</span>' if s['licence'] else '') + '</p>'
                     + f'<p class="svc-what">{esc(s["description"])}' + (f' Also: {extra}.' if extra else '') + f' {edit_icon("services", s["id"], s["name"])}</p></li>')
     return ('    <section class="part" id="building-blocks" aria-labelledby="building-blocks-h">\n      <h2 id="building-blocks-h">Building blocks</h2>\n'
-            '      <p class="sum">Protocol implementations, libraries and general media servers that apps and relays are built from. For developers and self-hosters; streamers find the finished apps on <a href="links.html">How to IRL</a>.</p>\n'
+            '      <p class="sum">Protocol implementations, libraries and general media servers that apps and receivers are built from. For developers and self-hosters; streamers find the finished apps on <a href="links.html">How to IRL</a>.</p>\n'
             '      <ul class="svcs blocks">\n        ' + '\n        '.join(rows) + '\n      </ul>\n    </section>')
 
 def standard_users(x: dict, by_id: dict[str, dict], on_links: set[str]) -> tuple[list[str], str]:
