@@ -858,7 +858,7 @@ CLASS_SECTIONS = [
     ('helper-app', 'helper-apps', 'Helper apps', 'Small apps around the stream: chat, sharing your location, remote control, a camera into the phone.'),
     ('connections', 'connections', 'More connections', 'Add another network to your stream, so one weak signal doesn’t end it.'),
     ('bonding', 'bonding', 'Bonding and relays', 'A bonded stream leaves over several connections. A receiver or relay joins it back together and passes it on to OBS or the platform.'),
-    ('hardware', 'hardware', 'Backpacks and encoders', 'A box that encodes and sends over several modems, and takes a real camera. Ready-made, or a kit you build.'),
+    ('hardware', 'hardware', 'Backpacks and encoders', 'A box that encodes and sends over several modems, and takes a standalone camera. Ready-made, or a kit you build.'),
     ('parts', 'parts', 'Parts and add-ons', 'Extras for a box or backpack you already have.'),
     ('store', 'stores', 'Shops', 'Where to buy built backpacks, cases and parts.'),
     ('cloud', 'cloud', 'Cloud production', 'OBS and its tools running on a server for you, so your stream doesn’t depend on your home PC and internet.'),

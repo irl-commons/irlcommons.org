@@ -1533,3 +1533,61 @@ details.sources > .tip-src { display: block; margin-top: 0; margin-bottom: 8px; 
 
 .std-tools { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
 .std-tools .word-count { margin: 0; grid-area: auto; }
+
+/* ---------- Phone header: the site nav is one row that scrolls sideways ---------- */
+@media (max-width: 859px) {
+  .site-nav { border-top: 0; margin-right: calc(-1 * var(--gutter)); overflow: hidden; }
+  .site-nav ul { display: flex; flex-wrap: nowrap; gap: 0 22px; overflow-x: auto; scrollbar-width: none; padding-right: var(--gutter);
+    -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 40px), transparent); mask-image: linear-gradient(90deg, #000 calc(100% - 40px), transparent); }
+  .site-nav ul::-webkit-scrollbar { display: none; }
+  .site-nav li { flex: none; }
+  .site-nav a { white-space: nowrap; font-size: 16px; }
+}
+
+/* ---------- Home: three groups of starting points ---------- */
+.step.start { border-top: 0; padding-top: var(--s3); }
+.step.start > .grp { font-size: 13px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); margin: var(--s3) 0 10px; }
+.step.start > .grp:first-child { margin-top: 0; }
+.start .choices { gap: 8px; }
+.start .choices a { grid-template-columns: 72px minmax(0, 1fr); column-gap: 12px; padding: 9px 12px; }
+.start .choices .ill { width: 72px; height: 48px; }
+.start .choices strong { font-size: 17px; line-height: 1.25; }
+.start .choices span { font-size: 15px; line-height: 1.35; margin-top: 1px; }
+@media (min-width: 600px) {
+  .start .choices { gap: 16px; }
+  .start .choices a { grid-template-columns: minmax(0, 1fr); padding: 14px 16px 16px; row-gap: 4px; }
+  .start .choices .ill { width: 144px; height: 96px; }
+}
+@media (min-width: 1000px) {
+  .start .choices:not(.learn), .fits-page .start .choices:not(.learn) { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .start .choices .ill { width: 144px; height: 96px; }
+}
+/* Glossary and Help: plain rows, clearly less prominent than the cards. */
+.start .choices.learn { grid-auto-rows: auto; gap: 0; }
+.start .choices.learn li { display: block; }
+.start .choices.learn a { display: grid; grid-template-columns: 40px minmax(0, 1fr); grid-template-rows: auto auto; column-gap: 10px; row-gap: 0;
+  padding: 8px 2px; background: none; border: 0; border-bottom: 1px solid var(--rule); border-radius: 0; }
+.start .choices.learn .ill { grid-row: 1 / 3; width: 40px; height: 27px; margin: 0; align-self: center; }
+.start .choices.learn strong { font-size: 16px; font-weight: 700; align-self: end; }
+.start .choices.learn strong::after { content: none; }
+.start .choices.learn span { font-size: 14.5px; margin: 0; }
+.start .choices.learn a:hover strong, .start .choices.learn a:focus-visible strong { text-decoration: underline; }
+@media (min-width: 600px) { .start .choices.learn { grid-template-columns: repeat(2, minmax(0, 340px)); gap: 0 24px; } }
+
+/* ---------- Setup answers: collapsible blocks ---------- */
+details.block { border-top: 1px solid var(--rule); }
+details.block:last-of-type { border-bottom: 1px solid var(--rule); }
+details.block:first-child { margin-top: var(--s2); }
+details.block > summary { list-style: none; cursor: pointer; display: flex; align-items: baseline; gap: 10px; padding: 10px 0; }
+details.block > summary::-webkit-details-marker { display: none; }
+details.block > summary::after { content: "+"; content: "+" / ""; font-family: var(--mono); font-weight: 500; font-size: 19px; line-height: 1; color: var(--muted); }
+details.block[open] > summary::after { content: "\2212"; content: "\2212" / ""; }
+details.block > summary h3 { display: inline; font-size: 17px; margin: 0; }
+details.block > summary small { margin-left: auto; font-size: 14px; color: var(--muted); white-space: nowrap; }
+details.block > summary:hover h3 { text-decoration: underline; }
+details.block .picks { list-style: disc; padding: 0 0 12px 20px; margin: 0; }
+details.block .picks li { padding: 0; margin: 4px 0; border: 0; }
+details.block .picks li:last-child { border: 0; }
+details.block .picks li.plain { font-weight: 400; }
+details.block .picks li.aside { list-style: none; margin-left: -20px; font-size: 15px; color: var(--muted); }
+@media print { details.block > summary::after { content: none; } }
