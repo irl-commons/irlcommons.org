@@ -70,7 +70,7 @@ jobs:
             git commit -m "Data: update @irl-commons/data to $VERSION"
           fi
           git fetch origin main
-          git rebase origin/main
+          git merge origin/main --no-edit
           # Recheck if main changed while the release was being tested.
           npm ci --ignore-scripts
           npm audit signatures
