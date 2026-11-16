@@ -46,6 +46,12 @@
     return target + (/^#[A-Za-z0-9_-]+$/.test(hash || "") ? hash : "");
   }
 
+  // The phone platform an answer's iPhone/Android switch starts on; iPhone when the visitor's isn't offered or known.
+  function pickPlatform(ua, offered) {
+    var mine = /Android/i.test(ua || "") ? "android" : "ios";
+    return offered.indexOf(mine) >= 0 ? mine : offered[0];
+  }
+
   function hashId(hash) {
     var raw = String(hash || "").replace(/^#/, "");
     try { raw = decodeURIComponent(raw); } catch (e) { return ""; }
@@ -157,7 +163,7 @@
     return /^\d*\.?\d+$|^\d+\.$/.test(t) ? parseFloat(t) : NaN;
   }
 
-  var api = { hashId: hashId, movedUrl: movedUrl, MODES: MODES, dataUse: dataUse, fmtSize: fmtSize, readNumber: readNumber, THEME_KEY: THEME_KEY, readTheme: readTheme, writeTheme: writeTheme, shownTheme: shownTheme, nextTheme: nextTheme, themeLabel: themeLabel, norm: norm, wordMatches: wordMatches, wordCount: wordCount, standardCount: standardCount };
+  var api = { hashId: hashId, pickPlatform: pickPlatform, movedUrl: movedUrl, MODES: MODES, dataUse: dataUse, fmtSize: fmtSize, readNumber: readNumber, THEME_KEY: THEME_KEY, readTheme: readTheme, writeTheme: writeTheme, shownTheme: shownTheme, nextTheme: nextTheme, themeLabel: themeLabel, norm: norm, wordMatches: wordMatches, wordCount: wordCount, standardCount: standardCount };
   if (typeof module === "object" && module.exports) { module.exports = api; return; }
 
   function initWords() {
@@ -516,6 +522,25 @@
     render(false);
   }
 
+  // An answer's iPhone/Android lists become a two-button switch that starts on the visitor's own platform.
+  // Without script both lists show, each under its name. Apps for both platforms are in both lists.
+  function initPlatforms() {
+    Array.prototype.forEach.call(document.querySelectorAll(".plats"), function (box) {
+      var seg = box.querySelector(".seg");
+      var lists = Array.prototype.slice.call(box.querySelectorAll(".plat"));
+      var buttons = Array.prototype.slice.call(seg.querySelectorAll("button"));
+      var offered = buttons.map(function (b) { return b.getAttribute("data-platform"); });
+      function pick(p) {
+        buttons.forEach(function (b) { b.setAttribute("aria-pressed", b.getAttribute("data-platform") === p ? "true" : "false"); });
+        lists.forEach(function (l) { l.hidden = l.getAttribute("data-platform") !== p; });
+      }
+      buttons.forEach(function (b) { b.addEventListener("click", function () { pick(b.getAttribute("data-platform")); }); });
+      box.classList.add("is-switch");
+      seg.hidden = false;
+      pick(pickPlatform(navigator.userAgent, offered));
+    });
+  }
+
   // A "Back" link with data-back="history" returns to the step the visitor came from on this page. The site sends
   // no referrer, so arriving from anywhere else (or without script) the link follows its href to the cards.
   function initBack() {
@@ -544,7 +569,7 @@
     });
   }
 
-  function start() { initFold(); initBack(); initTheme(); initBeta(); initWords(); initStandards(); initClear(); initPermalinks(); initCalc(); landTarget(); }
+  function start() { initFold(); initBack(); initPlatforms(); initTheme(); initBeta(); initWords(); initStandards(); initClear(); initPermalinks(); initCalc(); landTarget(); }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", start);
   else start();
 })();

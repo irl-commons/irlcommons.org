@@ -554,15 +554,15 @@ details.more > p { font-size: 16px; padding-left: calc(1ch + 10px); }
 
 
 @supports selector(:has(*)) {
-  @media (max-width: 999px) { .fits-page:has(.step:target:not(#start)) > .toc { display: none; } }
+  @media (max-width: 999px) { .fits-page:has(.step:not(#start):target, .step:not(#start) :target) > .toc { display: none; } }
 }
 .flow { max-width: none; }
 .step { padding-top: var(--s3); }
 .step.start > h2 { margin-top: 0; }
 .answers { display: none; }
 @supports selector(:has(*)) {
-  .fits-page:has(.step:target:not(#start)) .page-head { padding-bottom: var(--s3); }
-  .fits-page:has(.step:target:not(#start)) .page-head :is(.lede, .meta) { display: none; }
+  .fits-page:has(.step:not(#start):target, .step:not(#start) :target) .page-head { padding-bottom: var(--s3); }
+  .fits-page:has(.step:not(#start):target, .step:not(#start) :target) .page-head :is(.lede, .meta) { display: none; }
 }
 @media (min-width: 1920px) {
   .fits-page .start .choices { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; }
@@ -645,8 +645,8 @@ details.more > p { font-size: 16px; padding-left: calc(1ch + 10px); }
 
 @supports selector(:has(*)) {
   @media screen {
-    .flow:has(.step:target) > .step:not(:target),
-    .flow:not(:has(.step:target)) > .step:not(#start) { display: none !important; }
+    .flow:has(> .step:target, > .step :target) > .step:not(:target):not(:has(:target)),
+    .flow:not(:has(> .step:target, > .step :target)) > .step:not(#start) { display: none !important; }
   }
 }
 @media print { .flow > .step { display: block !important; } }
@@ -666,7 +666,7 @@ details.more > p { font-size: 16px; padding-left: calc(1ch + 10px); }
 
 
 @supports selector(:has(*)) {
-  @media screen { body:has(.step:target:not(#start)) :is(.combine, .pager) { display: none; } }
+  @media screen { body:has(.step:not(#start):target, .step:not(#start) :target) :is(.combine, .pager) { display: none; } }
 }
 .send a { overflow-wrap: normal; word-break: normal; }
 
@@ -1497,7 +1497,7 @@ details.sources > .tip-src { display: block; margin-top: 0; margin-bottom: 8px; 
 @media (min-width: 1000px) { .home-page > .home-title { grid-column: 2; margin-top: 48px; } }
 @supports selector(:has(*)) {
   /* On an answer the title stays for screen readers only; the back link leads the page. */
-  @media screen { .home-page:has(.step:target:not(#start)) > .home-title { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; margin: 0; } }
+  @media screen { .home-page:has(.step:not(#start):target, .step:not(#start) :target) > .home-title { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; margin: 0; } }
 }
 .step.start { border-top: 0; padding-top: var(--s3); }
 .step.start > .grp { font-size: 13px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); margin: var(--s3) 0 10px; }
@@ -1546,3 +1546,56 @@ details.block .picks li:last-child { border: 0; }
 details.block .picks li.plain { font-weight: 400; }
 details.block .picks li.aside { list-style: none; margin-left: -20px; font-size: 15px; color: var(--muted); }
 @media print { details.block > summary::after { content: none; } }
+
+/* ---------- Setup answers: steps, choices, watch-out marks, platform switch ---------- */
+/* A step-by-step answer needs the width: its side lines follow below, as on narrower screens. */
+@media (min-width: 1280px) {
+  .step.steps .result-body { display: block; }
+  .step.steps .result-side { margin-top: var(--s4); border-left: 2px solid var(--rule-strong); padding-left: 14px; max-width: var(--measure); }
+}
+a.gl { text-decoration-style: dotted; text-decoration-thickness: 1.5px; }
+.result-main .pre { margin: 4px 0 6px; max-width: var(--measure); }
+details.block > .pre { margin: 0 0 12px; }
+details.block > .pre + .picks { margin-top: -6px; }
+details.block ol.picks { list-style: decimal; padding-left: 22px; }
+details.block ol.picks li { padding-left: 4px; }
+.picks.mix, details.block .picks.mix { list-style: none; padding-left: 0; }
+.picks.mix li, details.block .picks.mix li { position: relative; padding: 0 0 0 26px; margin: 6px 0; border: 0; }
+.picks.mix li::before { content: ""; position: absolute; left: 6px; top: 0.62em; top: calc(0.5lh - 3px); width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.picks.mix li.w::before, .legend .mk-w { content: "!"; content: "!" / ""; left: 0; top: 0.3em; top: calc(0.5lh - 8.5px); width: 17px; height: 17px; box-sizing: border-box; border-radius: 4px; background: none;
+  border: 1.5px solid var(--caution); color: var(--caution); font: 700 12px/14px var(--sans); text-align: center; }
+details.block .picks.mix li.aside { margin-left: 0; padding-left: 0; }
+.picks.mix li.aside::before { content: none; }
+.picks li:is(.plain, .aside) > a:first-child { font-weight: inherit; }
+.picks.mix li.aside { font-size: 15px; color: var(--muted); }
+.legend { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; margin: var(--s2) 0 0; font-size: 13px; color: var(--muted); }
+.legend .mk-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--fg); margin: 0 2px 0 0; }
+.legend .mk-w { display: inline-block; position: static; margin: 0 2px 0 14px; }
+.stepblock > h3.num { display: flex; align-items: baseline; gap: 10px; font-size: 19px; line-height: 1.25; margin: var(--s3) 0 6px; }
+.stepblock > h3.num .n { flex: none; width: 26px; height: 26px; border-radius: 4px; background: var(--fg); color: var(--bg); font-size: 15px; line-height: 26px; text-align: center; }
+.stepblock > h4.sub { font-size: 17px; margin: var(--s2) 0 2px; scroll-margin-top: var(--s3); }
+.stepblock > .picks { max-width: var(--measure); }
+.choose { list-style: none; display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; margin: 10px 0 4px; padding: 0; }
+@media (min-width: 560px) { .choose { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.choose .opt { border: 1.5px solid var(--rule-strong); border-radius: 4px; padding: 12px 14px; background: var(--card); font-size: 15.5px; }
+.choose .opt h4 { margin: 0 0 4px; font-size: 17px; }
+.choose .opt p { margin: 4px 0; }
+.choose .opt .picks.mix li { margin: 4px 0; }
+.choose .opt .go { margin-top: 8px; }
+.choose .opt .go a { font-weight: 700; }
+.plats { margin: 0 0 12px; }
+.plat h4 { margin: 8px 0 2px; font-size: 16px; }
+.plats.is-switch .plat h4 { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; margin: 0; }
+.plat[hidden], .seg[hidden] { display: none; }
+.seg { display: inline-flex; border: 1.5px solid var(--rule-strong); border-radius: 4px; overflow: hidden; margin: 2px 0 6px; }
+.seg button { font: inherit; font-size: 15px; color: var(--fg); background: none; border: 0; padding: 5px 14px; cursor: pointer; min-height: 36px; }
+.seg button + button { border-left: 1.5px solid var(--rule-strong); }
+.seg button[aria-pressed="true"] { background: var(--fg); color: var(--bg); font-weight: 700; }
+.seg button:focus-visible { outline: 2px solid var(--fg); outline-offset: -4px; }
+.seg button[aria-pressed="true"]:focus-visible { outline-color: var(--bg); }
+@media (forced-colors: active) {
+  .seg button[aria-pressed="true"] { background: Highlight; color: HighlightText; }
+  .picks.mix li::before, .legend .mk-dot { background: CanvasText; }
+  .picks.mix li.w::before, .legend .mk-w { border-color: CanvasText; color: CanvasText; background: none; }
+}
+@media print { .seg { display: none; } .plat[hidden] { display: block; } .plats.is-switch .plat h4 { position: static; width: auto; height: auto; clip: auto; } }
