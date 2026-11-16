@@ -83,3 +83,17 @@ assert 'Other name usually means Another meaning.' in out
 assert 'glossary.html#other' in out
 `],{stdio:'pipe'});
 });
+
+test('Glossary card links use the word target and accessible name', async()=>{
+ const {execFileSync}=await import('node:child_process');
+ execFileSync('python3',['-c', `
+import sys
+sys.path.insert(0, 'shared')
+import render as r
+body = '<dl><div class="entry" id="sample"><dt data-word="sample">Sample &amp; word</dt><dd>Meaning.</dd></div></dl>'
+out = r.add_permalinks(body)
+assert 'href="#sample" aria-label="Link to Sample &amp; word"' in out
+assert not r.permalink_problems('sample.html', out)
+assert r.add_permalinks(out) == out
+`],{stdio:'pipe'});
+});

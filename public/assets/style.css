@@ -710,7 +710,7 @@ details.more > p { font-size: 16px; padding-left: calc(1ch + 10px); }
 .glossary { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0 var(--s5); margin: 0; }
 .glossary .entry { padding: var(--s3) 0; border-top: 1px solid var(--rule); scroll-margin-top: var(--s3); }
 .glossary .entry:target { box-shadow: inset 3px 0 0 var(--fg); padding-left: 14px; }
-.glossary dt { font-size: var(--t-h3); font-weight: 700; line-height: 1.25; margin-bottom: 8px; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; }
+.glossary dt { padding-right: 30px; font-size: var(--t-h3); font-weight: 700; line-height: 1.25; margin-bottom: 8px; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; }
 .glossary .who { font-size: 13px; font-weight: 500; color: var(--muted); border: 1px solid var(--rule-strong); border-radius: 3px; padding: 1px 7px; }
 .glossary dd { margin: 0 0 6px; max-width: var(--measure); }
 .glossary .plain { font-size: var(--t-body); margin-bottom: 10px; }
@@ -1050,7 +1050,7 @@ input.has-clear::-webkit-search-cancel-button { -webkit-appearance: none; appear
 
 .permalink { position: relative; display: inline-block; padding: 0 0.2em; margin: -0.1em 0; font-weight: 400; font-size: 0.85em; line-height: 1; color: var(--muted); text-decoration: none; border-radius: var(--radius); opacity: 0; transition: opacity 0.15s; }
 .permalink:hover { color: var(--fg); text-decoration: underline; text-underline-offset: 0.15em; }
-h2:hover > .permalink, h3:hover > .permalink, .permalink:focus-visible, .permalink.is-copied, :target > .permalink, :target > h2 > .permalink { opacity: 1; }
+.glossary dt:hover > .permalink, .glossary dt:focus-within > .permalink, .entry:target > dt > .permalink, h2:hover > .permalink, h3:hover > .permalink, .permalink:focus-visible, .permalink.is-copied, :target > .permalink, :target > h2 > .permalink { opacity: 1; }
 @media (hover: none), (pointer: coarse) { .permalink { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .permalink { transition: none; } }
 .permalink::after { content: "Link copied"; position: absolute; right: 0; bottom: calc(100% + 6px); z-index: 10; white-space: nowrap; font: 600 13px/1 var(--sans); letter-spacing: 0; color: var(--bg); background: var(--fg); border-radius: 3px; padding: 6px 8px; opacity: 0; pointer-events: none; }

@@ -96,7 +96,7 @@ def words_entries(words: list[dict], lang: str) -> str:
             rows.append(f'''<dd class="word-more"><details id="{w['id']}-more"><summary>{t['more']}<span class="vh"> {t['about']} {html.escape(term, quote=False)}</span></summary><ul>{''.join(links)}</ul></details></dd>''')
         rows.append(f'<dd class="edit-line">{edit_icon("words", w["id"], term)}</dd>')
         hay = ' '.join([*word_names(w), plain]).lower()
-        out.append(f'''        <div class="entry" id="{w['id']}" data-search="{html.escape(hay)}">\n          <dt>{html.escape(term, quote=False)}</dt>\n          ''' + '\n          '.join(rows) + '\n        </div>')
+        out.append(f'''        <div class="entry" id="{w['id']}" data-search="{html.escape(hay)}">\n          <dt data-word="{w['id']}">{html.escape(term, quote=False)}</dt>\n          ''' + '\n          '.join(rows) + '\n        </div>')
     return '\n'.join(out)
 
 def words_toc(words: list[dict], lang: str) -> str:
@@ -606,7 +606,7 @@ class SourceLines(HTMLParser):
 PERMALINK_LABEL = 'Link to this section: '
 
 class HeadingScan(HTMLParser):
-    """Every h2 and h3 with an id, for the section links ("#" after the heading text).
+    """Every h2 and h3 with an id, and marked glossary terms, for the section links ("#" after the heading text).
 
     For each heading: where its closing tag starts, the link target (the id of the enclosing
     element that the heading labels via aria-labelledby, so links stay #upload rather than
@@ -632,8 +632,8 @@ class HeadingScan(HTMLParser):
                 self.cur['links'].append((a.get('href'), a.get('aria-label') or ''))
             else:
                 self.stray.append(a.get('href') or '')
-        if tag in ('h2', 'h3') and a.get('id'):
-            hid = a['id']
+        if (tag in ('h2', 'h3') and a.get('id')) or (tag == 'dt' and a.get('data-word')):
+            hid = a.get('id') or a['data-word']
             target = next((i for _, i, lab in reversed(self.stack) if i and lab == hid), hid)
             self.cur = {'tag': tag, 'id': hid, 'target': target, 'text': '', 'links': [], 'end': None, 'excluded': 'vh' in classes or a.get('data-permalink') == 'no'}
         if tag in self.VOID:
@@ -670,7 +670,7 @@ def add_permalinks(body: str) -> str:
         if h['excluded'] or h['links']:
             continue
         pos = line_starts[h['end'][0] - 1] + h['end'][1]
-        label = html.escape(PERMALINK_LABEL + h['text'])
+        label = html.escape(('Link to ' if h['tag'] == 'dt' else PERMALINK_LABEL) + h['text'])
         out.append(body[last:pos].rstrip())
         out.append(f'''&nbsp;<a class="permalink" href="#{h['target']}" aria-label="{label}">#</a>''')
         last = pos
@@ -692,7 +692,7 @@ def permalink_problems(name: str, text: str) -> list[str]:
         href, label = h['links'][0]
         if href != f"#{h['target']}":
             found.append(f"{name}: heading #{h['id']}: section link goes to {href}, expected #{h['target']}")
-        if label != PERMALINK_LABEL + h['text'] or not h['text']:
+        if label != ('Link to ' if h['tag'] == 'dt' else PERMALINK_LABEL) + h['text'] or not h['text']:
             found.append(f"{name}: heading #{h['id']}: section link label {label!r} doesn't match the heading")
         targets.append(href)
     for href in scan.stray:
