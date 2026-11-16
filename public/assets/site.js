@@ -327,6 +327,16 @@
     button.hidden = false;
   }
 
+  // The phone nav scrolls sideways. Browsers leave a half-visible focused link where it is, so
+  // bring it fully in, clear of the fade (the row's scroll-padding sets that room).
+  function initNav() {
+    var row = document.querySelector(".site-nav ul");
+    if (!row) return;
+    row.addEventListener("focusin", function (ev) {
+      if (row.scrollWidth > row.clientWidth && ev.target.scrollIntoView) ev.target.scrollIntoView({ block: "nearest", inline: "nearest" });
+    });
+  }
+
   function initBeta() {
     var badge = document.querySelector(".beta-badge");
     var tip = document.getElementById("beta-tip");
@@ -569,7 +579,7 @@
     });
   }
 
-  function start() { initFold(); initBack(); initPlatforms(); initTheme(); initBeta(); initWords(); initStandards(); initClear(); initPermalinks(); initCalc(); landTarget(); }
+  function start() { initFold(); initBack(); initPlatforms(); initTheme(); initNav(); initBeta(); initWords(); initStandards(); initClear(); initPermalinks(); initCalc(); landTarget(); }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", start);
   else start();
 })();
