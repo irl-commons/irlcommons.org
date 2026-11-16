@@ -1,0 +1,26 @@
+# Text that was cut from howtoirl.org and irlcommons.org and must not come back.
+# The build check (scripts/banned-phrases.test.mjs) fails if any line below appears
+# on any built page or asset in dist/, on either site. Matching ignores case,
+# markup between words, curly versus straight quotes and runs of whitespace.
+# One phrase per line; keep each one exact and short. This file is identical
+# in both site repositories.
+
+# Missing-entry teaser and its follow-up line (the footer links to the data).
+Missing an app, a service or a guide?
+The lists on this site are open data in irl-commons
+Spot something wrong on this site?
+
+# Open standards: the count in the heading and the sources line.
+The four drafts
+The drafts borrow on purpose
+
+# Contribute: the old mods heading, the mods' privacy line and the stage rules.
+Chat mods
+Leave out where the streamer is and who is with them
+Stages of a spec
+
+# Earlier cuts.
+Most of what's below isn't built yet
+Want your app or service listed?
+You can combine these
+A one-person open project

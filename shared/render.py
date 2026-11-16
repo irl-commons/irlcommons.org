@@ -15,9 +15,6 @@ COMMONS = {'repo': 'https://github.com/irl-commons/irl-commons', 'suggest': 'htt
 def commons_line() -> str:
     return f'''<p class="commons-line">From <a href="{COMMONS['repo']}">irl-commons</a> · <a href="{COMMONS['licence']}">CC BY 4.0</a> · <a href="{COMMONS['suggest']}">Suggest a change</a></p>'''
 
-def commons_teaser() -> str:
-    return f'''<p class="commons-teaser" id="listed">Missing an app, a service or a guide? The lists on this site are open data in irl-commons. <a href="{COMMONS['suggest']}">Suggest it there</a>, or see <a href="data.html#commons">Data and standards</a>.</p>'''
-
 LEGAL = [('legal-notice.html', 'Legal notice', 'en'), ('impressum.html', 'Impressum', 'de'), ('privacy.html', 'Privacy policy', 'en'), ('datenschutz.html', 'Datenschutz', 'de')]
 
 STABLE_ANCHORS = {'index.html': ['commons', 'standing'], 'how-to-irl.html': ['start', 'more', 'one-phone', 'second-network', 'build', 'ready-made', 'cloud', 'hybrid', 'receiver', 'into-obs', 'satellite', 'sims', 'combine', 'all'], 'help.html': ['my-stack', 'start-here', 'guides', 'where-to-ask'], 'glossary.html': ['all-words'], 'roadmap.html': ['ideas', 'one-show', 'chain', 'screens', 'status'], 'standards.html': ['shared', 'app-formats', 'hardware-codecs', 'mine', 'compare-codecs', 'compare-transports'], 'open-standards.html': ['why', 'fit', 'around', 'comments', 'credits'], 'contribute.html': ['contact', 'commons', 'streamers', 'mods', 'helpers', 'production', 'makers', 'developers', 'listed'], 'data-plans.html': ['upload', 'data', 'small-print', 'use-rules', 'fact-sheet', 'maps', 'spot-check', 'abroad', 'calculator', 'overhead', 'units', 'eu-roaming', 'maker-data'], 'why-bonding.html': ['one-modem', 'best-case', 'shared-cell', 'moving', 'handover', 'priority', 'upload', 'how-it-helps', 'diversity', 'pieces', 'how-srtla-splits', 'add-up', 'freeze', 'limits', 'same-network', 'more-data', 'not-camera', 'heat-power', 'next-steps']}
@@ -962,7 +959,6 @@ def fill_services(body: str, services: list[dict]) -> str:
     if '<!--services:blocks-->' in body:
         body = body.replace('<!--services:blocks-->', building_blocks_html(services))
     body = body.replace('<!--commons:line-->', commons_line())
-    body = body.replace('<!--commons:teaser-->', commons_teaser())
     return body
 
 def links_filters_css(services: list[dict]) -> str:
@@ -1193,7 +1189,6 @@ def help_page_html(services: list[dict], guides: list[dict], own: list[dict]) ->
             '<div id="results" hidden></div>'
             + help_apps_html(services, guides) +
             f'<p class="empty" id="nomatch" hidden>No app found. <a href="{sug}">Suggest it</a></p>'
-            f'<p class="commons-teaser" id="listed"><a href="{sug}">Missing an app, a service or a guide?</a></p>'
             '</section>'
             '<section class="tab-panel" id="guides" aria-labelledby="t-guides"><h2 class="nojs-h">Guides</h2>'
             + help_guides_html(services, guides, own) +

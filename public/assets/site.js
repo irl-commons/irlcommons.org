@@ -647,7 +647,7 @@
     if (ask) { out.tab = "help"; out.open = ask[1]; return out; }
     var app = /^app-([a-z0-9-]+)$/.exec(raw);
     if (app) { out.tab = "help"; out.row = raw; return out; }
-    if (HELP_IDS[raw]) { out.tab = "help"; out.row = raw === "start-here" || raw === "my-stack" ? "" : raw; return out; }
+    if (HELP_IDS[raw]) { out.tab = "help"; out.row = raw === "start-here" || raw === "my-stack" || raw === "listed" ? "" : raw; return out; }
     var f = { src: "", st: "", k: "", app: "", q: "" };
     var one = /^(guides-|kind-|for-)([a-z0-9-]+)$/.exec(raw);
     if (one) {
