@@ -53,6 +53,8 @@
   --max: 1160px;
   --read: 66ch;
   --rail: 200px;
+  /* One page header on every page: space above the title, title to lede, last header line to the content. */
+  --head-top: 24px; --head-gap: 12px; --head-bottom: 16px;
   color-scheme: light;
 }
 @media (prefers-color-scheme: dark) {
@@ -70,6 +72,7 @@
   color-scheme: dark;
 }
 @media (max-width: 759px) { :root { --t-body: 17px; --t-lede: 19px; --s6: 64px; --s5: 48px; } }
+@media (min-width: 760px) { :root { --head-top: 40px; --head-gap: 16px; --head-bottom: 24px; } }
 
 
 *, *::before, *::after { box-sizing: border-box; }
@@ -141,16 +144,12 @@ code { font-family: var(--mono); font-size: 0.88em; background: var(--sunk); bor
 
 
 .page { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0 var(--s4); padding-bottom: var(--s5); }
-.page-head { padding: var(--s5) 0 var(--s4); }
-.page-head h1 { font-size: var(--t-h1); line-height: 1.06; letter-spacing: -0.025em; max-width: 22ch; margin: var(--s2) 0 var(--s3); }
+.page-head { padding: var(--head-top) 0 var(--head-bottom); }
+.page-head h1 { font-size: var(--t-h1); line-height: 1.06; letter-spacing: -0.025em; max-width: 22ch; margin: 0; hyphens: manual; }
+.page-head > p { margin: var(--head-gap) 0 0; }
 .lede { font-size: var(--t-lede); line-height: 1.45; max-width: 56ch; }
-.page-head .meta { margin-top: -6px; }
 .toc { font-size: var(--t-small); margin-bottom: var(--s4); }
-@media (max-width: 759px) {
-  .page-head { padding-bottom: var(--s3); }
-  .page-head > :last-child { margin-bottom: 0; }
-  .toc { margin-bottom: var(--s3); }
-}
+@media (max-width: 759px) { .toc { margin-bottom: var(--s3); } }
 @media (max-width: 999px) { .toc li { white-space: nowrap; } .toc li a { display: inline-block; padding: 6px 0; } .links .toc li { display: block; } .links .toc li + li::before { content: none; } .links .toc li a { padding: 4px 0; } }
 .toc .label { display: none; }
 .toc li { display: inline; }
@@ -364,8 +363,8 @@ details.more > p { font-size: 16px; padding-left: calc(1ch + 10px); }
 @media (min-width: 1000px) { .pager { padding-left: calc(var(--gutter) + var(--rail) + var(--s4)); } }
 
 
-.legal { padding-top: var(--s5); padding-bottom: var(--s6); }
-.legal h1 { font-size: var(--t-h1); letter-spacing: -0.025em; line-height: 1.08; margin: 14px 0 24px; hyphens: manual; }
+.legal { padding-bottom: var(--s6); }
+@media (min-width: 1000px) { .legal > .read { grid-column: 2; } }
 .legal h2 { font-size: 22px; margin: 40px 0 10px; }
 .legal address { font-style: normal; margin: 0 0 1em; }
 .legal .short { font-size: 20px; border-left: 2px solid var(--fg); padding-left: 14px; margin-bottom: 8px; }
@@ -506,21 +505,21 @@ details.more > p { font-size: 16px; padding-left: calc(1ch + 10px); }
 @media print { .tint { background: none; } }
 
 
-.home-lead { padding-top: var(--s6); padding-bottom: var(--s5); }
+.home-lead { padding-top: var(--head-top); padding-bottom: var(--s5); }
 .home .then { margin-bottom: 0; }
 .standing-head { border-bottom: 2px solid var(--fg); }
 .standing-head h2 { font-size: var(--t-h3); letter-spacing: -0.01em; }
 .stand-rows p { font-size: 17px; }
-@media (max-width: 759px) { .home-lead { padding-top: var(--s4); padding-bottom: var(--s5); } .tint { padding: var(--s4) 0; } }
+@media (max-width: 759px) { .home-lead { padding-bottom: var(--s5); } .tint { padding: var(--s4) 0; } }
 
 
 .head-ill { display: none; }
 @media (min-width: 1000px) {
-  .page-head { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: var(--s5); align-items: center; }
-  .page-head > * { grid-column: 1; }
+  .page-head:has(> .head-ill) { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: var(--s5); align-items: center; }
+  .page-head:has(> .head-ill) > * { grid-column: 1; }
   .page-head > .head-ill { display: block; grid-column: 2; grid-row: 1 / span 4; width: 240px; height: 160px; color: var(--fg); }
 }
-.lang-switch { margin: -8px 0 var(--s3); font-weight: 700; }
+.lang-switch { font-weight: 700; }
 
 
 .pager a { font-size: var(--t-h3); }
@@ -1419,13 +1418,11 @@ details.sources > .tip-src { display: block; margin-top: 0; margin-bottom: 8px; 
 }
 
 /* ---------- Home: three groups of starting points ---------- */
-.home-title { font-size: var(--t-h1); line-height: 1.06; letter-spacing: -0.025em; margin: var(--s3) 0 0; }
-@media (min-width: 1000px) { .home-page > .home-title { grid-column: 2; margin-top: 48px; } }
 @supports selector(:has(*)) {
   /* On an answer the title stays for screen readers only; the back link leads the page. */
-  @media screen { .home-page:has(.step:not(#start):target, .step:not(#start) :target) > .home-title { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; margin: 0; } }
+  @media screen { .home-page:has(.step:not(#start):target, .step:not(#start) :target) > .page-head { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; margin: 0; } }
 }
-.step.start { border-top: 0; padding-top: var(--s3); }
+.step.start { border-top: 0; padding-top: 0; }
 .step.start > .grp { font-size: 13px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); margin: var(--s3) 0 10px; }
 .step.start > .grp:first-child { margin-top: 0; }
 .start .choices { gap: 8px; }
@@ -1539,7 +1536,7 @@ ol.picks.steps .picks.mix, .picks.mix .picks.mix, details.block .picks .picks.mi
 @media print { .seg { display: none; } .plat[hidden] { display: block; } .plats.is-switch .plat h4 { position: static; width: auto; height: auto; clip: auto; } }
 
 /* Problem-first home (irlcommons.org) and the two-site strip. */
-.home h1.problem-h { font-size: var(--t-h1); line-height: 1.1; letter-spacing: -0.02em; max-width: 24ch; margin: var(--s2) 0 var(--s3); }
+.home h1.problem-h { font-size: var(--t-h1); line-height: 1.06; letter-spacing: -0.02em; max-width: 24ch; margin: 0 0 var(--s3); }
 .problem { list-style: none; margin: 0 0 var(--s5); padding: 0; max-width: var(--measure); font-size: var(--t-lede); line-height: 1.45; }
 .problem li { position: relative; padding: 4px 0 4px 24px; }
 .problem li::before { content: ""; position: absolute; left: 2px; top: calc(4px + 0.72em); width: 10px; height: 2px; background: var(--latch); }
@@ -1565,10 +1562,9 @@ ol.picks.steps .picks.mix, .picks.mix .picks.mix, details.block .picks .picks.mi
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --c-sender: #3a7bb0; --c-connections: #8a5fbb; --c-receiver: #b85a30; --c-tools: #36805f; } }
 :root[data-theme="dark"] { --c-sender: #3a7bb0; --c-connections: #8a5fbb; --c-receiver: #b85a30; --c-tools: #36805f; }
 .s-sender { background: var(--c-sender); } .s-connections { background: var(--c-connections); } .s-receiver { background: var(--c-receiver); } .s-tools { background: var(--c-tools); }
-.myapps { display: block; max-width: calc(980px + 2 * var(--gutter)); font-size: 16px; line-height: 1.45; padding-bottom: 80px; }
+.myapps { font-size: 16px; line-height: 1.45; padding-bottom: 80px; }
+@media (min-width: 1000px) { .myapps > :not(.page-head) { grid-column: 2; } }
 .myapps [hidden] { display: none !important; }
-.myapps .page-head { display: block; padding: 12px 0 0; }
-.myapps .page-head h1 { font-size: 30px; line-height: 1.45; margin: 10px 0; letter-spacing: normal; }
 .myapps h2, .myapps h3 { letter-spacing: normal; line-height: 1.45; }
 .myapps button { font: inherit; color: inherit; }
 .myapps .hi { width: 20px; height: 20px; flex: none; }
