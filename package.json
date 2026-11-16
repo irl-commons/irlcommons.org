@@ -14,5 +14,9 @@
   },
   "devDependencies": {
     "html-validate": "11.21.1"
-  }
+  },
+  "engines": {
+    "node": ">=26"
+  },
+  "packageManager": "npm@11.20.0"
 }

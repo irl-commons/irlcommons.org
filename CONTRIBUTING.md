@@ -1,6 +1,6 @@
 # Contributing
 
-Fixes to the pages, layout and accessibility are welcome. Run `npm ci`, then
+Fixes to the pages, layout and accessibility are welcome. Use the Node version in [`.nvmrc`](.nvmrc) (`nvm install && nvm use`). Run `npm ci`, then
 `npm run check` before opening a pull request. Explain what changes for readers.
 
 The glossary, services, guides and standards belong to

@@ -4,7 +4,8 @@ A static Astro site for the IRL Commons initiative, open standards and open data
 
 ## Build
 
-Use Node 24 and Python 3.12 or newer. Run `npm ci --ignore-scripts`, then
+Use the Node version in [`.nvmrc`](.nvmrc) (`nvm install && nvm use`)
+and Python 3.12 or newer. The npm version is recorded in `package.json` (`packageManager`). Run `npm ci --ignore-scripts`, then
 `npm run check`. Upload the plain `dist/` directory through your normal static
 hosting process. Building never deploys. The `_headers` file records the required
 response headers; configure equivalent headers when the host does not read it.
