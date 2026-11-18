@@ -1,0 +1,203 @@
+name: Preview
+# Each pull request from a branch of this repository gets its own preview at
+# https://pr-<number>.preview.<site domain>/, rebuilt on every push and removed
+# when the pull request is closed. The link is posted on the pull request.
+# Pull requests from forks get no preview: their code never runs with the deploy key.
+# Previews are not indexed (noindex header and a robots.txt that disallows all).
+# Switched on by the repository variable SITE_PREVIEWS=on.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: Pull request number (its branch must be the one selected above)
+        required: true
+        type: number
+  schedule:
+    # Remove previews whose pull request is no longer open.
+    - cron: "41 4 * * *"
+permissions:
+  contents: read
+concurrency:
+  group: preview-${{ github.event.pull_request.number || inputs.pr || 'sweep' }}
+  cancel-in-progress: true
+env:
+  PR: ${{ github.event.pull_request.number || inputs.pr }}
+jobs:
+  build:
+    if: >-
+      github.repository_owner == 'irl-commons' && vars.SITE_PREVIEWS == 'on' &&
+      ((github.event_name == 'pull_request' && github.event.action != 'closed' &&
+        github.event.pull_request.head.repo.full_name == github.repository &&
+        github.actor != 'dependabot[bot]') ||
+       github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      domain: ${{ steps.site.outputs.domain }}
+      sha: ${{ steps.pr.outputs.sha }}
+    steps:
+      - name: Find the pull request's head
+        id: pr
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          [[ "$PR" =~ ^[1-9][0-9]{0,5}$ ]] || { echo "Not a pull request number: $PR" >&2; exit 1; }
+          read -r state head_repo head_ref sha < <(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR" \
+            --jq '[.state, .head.repo.full_name, .head.ref, .head.sha] | @tsv')
+          [ "$state" = open ] || { echo "Pull request $PR is $state" >&2; exit 1; }
+          [ "$head_repo" = "$GITHUB_REPOSITORY" ] || { echo "Pull request $PR comes from a fork" >&2; exit 1; }
+          if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ] && [ "$head_ref" != "$GITHUB_REF_NAME" ]; then
+            echo "Pull request $PR is on $head_ref, not $GITHUB_REF_NAME" >&2; exit 1
+          fi
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ steps.pr.outputs.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: Verify npm package signatures and provenance
+        run: npm audit signatures
+      - run: npm run check
+      - name: Pack the build
+        id: site
+        run: |
+          echo "domain=$(node -p "require('./site.json').domain")" >> "$GITHUB_OUTPUT"
+          tar --owner=0 --group=0 --mode='u=rwX,g=rX,o=' --sort=name -C dist -czf site.tar.gz .
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: preview
+          path: |
+            site.tar.gz
+            dist
+          retention-days: 3
+          if-no-files-found: error
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: write
+    # All pull requests share this environment for its key. The link lives in the
+    # pull request comment, not on the deployment, because GitHub marks older
+    # deployments of an environment inactive when a newer one lands.
+    environment: preview
+    steps:
+      - name: Preview address
+        id: url
+        run: echo "url=https://pr-$PR.preview.${{ needs.build.outputs.domain }}/" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+          sparse-checkout: .github/scripts
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          name: preview
+          path: build
+      - name: Upload the preview
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+          DEPLOY_SSH_TARGET: ${{ secrets.DEPLOY_SSH_TARGET }}
+          SHA: ${{ needs.build.outputs.sha }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy
+          chmod 600 ~/.ssh/deploy
+          ssh -i ~/.ssh/deploy -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes \
+            "$DEPLOY_SSH_TARGET" deploy "$PR" "$SHA" < build/site.tar.gz > manifest.json
+          rm -f ~/.ssh/deploy
+      - name: Check the preview against the build
+        run: python3 .github/scripts/verify-deploy.py build/dist manifest.json "${{ steps.url.outputs.url }}" --noindex
+      - name: Post the link on the pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
+          URL: ${{ steps.url.outputs.url }}
+          SHA: ${{ needs.build.outputs.sha }}
+        run: |
+          body=$(printf '<!-- site-preview -->\nPreview: %s\n\nBuilt from %s. It updates on every push and is removed when this pull request is closed. Search engines are told not to index it.' "$URL" "${SHA:0:7}")
+          id=$(gh api "repos/$GITHUB_REPOSITORY/issues/$PR/comments" --paginate \
+            --jq '[.[] | select(.user.login == "github-actions[bot]" and (.body | startswith("<!-- site-preview -->")))][0].id // empty' | head -n 1)
+          if [ -n "$id" ]; then
+            gh api -X PATCH "repos/$GITHUB_REPOSITORY/issues/comments/$id" -f body="$body" >/dev/null
+          else
+            gh api "repos/$GITHUB_REPOSITORY/issues/$PR/comments" -f body="$body" >/dev/null
+          fi
+
+  remove:
+    if: >-
+      github.repository_owner == 'irl-commons' && vars.SITE_PREVIEWS == 'on' &&
+      github.event_name == 'pull_request' && github.event.action == 'closed' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.actor != 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: write
+    environment: preview
+    steps:
+      - name: Remove the preview
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+          DEPLOY_SSH_TARGET: ${{ secrets.DEPLOY_SSH_TARGET }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy
+          chmod 600 ~/.ssh/deploy
+          ssh -i ~/.ssh/deploy -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes \
+            "$DEPLOY_SSH_TARGET" remove "$PR"
+          rm -f ~/.ssh/deploy
+      - name: Update the pull request comment
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          id=$(gh api "repos/$GITHUB_REPOSITORY/issues/$PR/comments" --paginate \
+            --jq '[.[] | select(.user.login == "github-actions[bot]" and (.body | startswith("<!-- site-preview -->")))][0].id // empty' | head -n 1)
+          if [ -n "$id" ]; then
+            gh api -X PATCH "repos/$GITHUB_REPOSITORY/issues/comments/$id" \
+              -f body=$'<!-- site-preview -->\nThe preview was removed when this pull request was closed.' >/dev/null
+          fi
+
+  sweep:
+    if: github.repository_owner == 'irl-commons' && vars.SITE_PREVIEWS == 'on' && github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: read
+    environment: preview
+    steps:
+      - name: Remove previews of closed pull requests
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+          DEPLOY_SSH_TARGET: ${{ secrets.DEPLOY_SSH_TARGET }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy
+          chmod 600 ~/.ssh/deploy
+          remote() { ssh -i ~/.ssh/deploy -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes "$DEPLOY_SSH_TARGET" "$@"; }
+          for pr in $(remote list | jq -r '.[].pr'); do
+            state=$(gh api "repos/$GITHUB_REPOSITORY/pulls/$pr" --jq .state)
+            if [ "$state" != open ]; then
+              echo "pull request $pr is $state"
+              remote remove "$pr"
+            fi
+          done
+          rm -f ~/.ssh/deploy
