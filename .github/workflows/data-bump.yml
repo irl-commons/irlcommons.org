@@ -2,11 +2,15 @@ name: Update IRL Commons data
 # Follow stable npm releases; every update is reviewed in a pull request.
 on:
   schedule:
-    - cron: "23 5 * * *"
+    # Hourly, so a new data release reaches the site's pull request within the hour.
+    - cron: "23 * * * *"
   workflow_dispatch:
 permissions:
   contents: write
   pull-requests: write
+  # Pull requests opened with the workflow token start no workflows by themselves,
+  # so the update job starts the preview build for its pull request directly.
+  actions: write
 concurrency:
   group: data-bump
   cancel-in-progress: false
@@ -74,10 +78,12 @@ jobs:
           npm run check
           git push origin "$branch"
           title="Data: update @irl-commons/data to $VERSION"
-          body="Pins @irl-commons/data to npm release $VERSION. Clean install, signature and provenance verification, build and site checks passed in the update job. Deploy after merging."
+          body="Pins @irl-commons/data to npm release $VERSION. Clean install, signature and provenance verification, build and site checks passed in the update job. The preview link follows in a comment; merging puts it live."
           pr=$(gh pr list --base main --head "$branch" --state open --json number --jq '.[0].number // empty')
           if [ -n "$pr" ]; then
             gh pr edit "$pr" --title "$title" --body "$body"
           else
             gh pr create --base main --head "$branch" --title "$title" --body "$body"
+            pr=$(gh pr list --base main --head "$branch" --state open --json number --jq '.[0].number')
           fi
+          gh workflow run preview.yml --ref "$branch" -f pr="$pr"

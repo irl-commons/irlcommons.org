@@ -6,9 +6,32 @@ A static Astro site for the IRL Commons initiative, open standards and open data
 
 Use the Node version in [`.nvmrc`](.nvmrc) (`nvm install && nvm use`)
 and Python 3.12 or newer. The npm version is recorded in `package.json` (`packageManager`). Run `npm ci --ignore-scripts`, then
-`npm run check`. Upload the plain `dist/` directory through your normal static
-hosting process. Building never deploys. The `_headers` file records the required
+`npm run check`. Building never deploys. The `_headers` file records the required
 response headers; configure equivalent headers when the host does not read it.
+
+## Deploys and previews
+
+GitHub Actions does both, once the repository variables `SITE_DEPLOY=on` and
+`SITE_PREVIEWS=on` are set:
+
+- **Live site:** every push to `main` is built, checked and put live
+  ([deploy.yml](.github/workflows/deploy.yml)). The server keeps the last five
+  releases and switches between them in one step. After the switch every file is
+  fetched from the live site and compared with the build; if anything differs, the
+  previous release goes back live. To undo a deploy by hand, run the Deploy workflow
+  with `rollback`.
+- **Previews:** each pull request from a branch of this repository gets its own
+  address, `https://pr-<number>.preview.<domain>/`, posted as a comment on the pull
+  request, rebuilt on every push and removed when it is closed
+  ([preview.yml](.github/workflows/preview.yml)). Previews are not indexed. Pull
+  requests from forks get no preview, because their code would run next to the
+  deploy key; a maintainer can push the branch here to get one.
+- **Data updates:** [data-bump.yml](.github/workflows/data-bump.yml) checks hourly
+  for a new `@irl-commons/data` release and opens a pull request with a preview.
+  Merging it puts the new data live.
+
+The deploy key, the server address and its host key are secrets of the
+`production` and `preview` environments; `production` only accepts `main`.
 
 ## Sources
 

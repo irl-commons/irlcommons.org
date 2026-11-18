@@ -1,0 +1,121 @@
+name: Deploy
+# Every push to main builds the site and puts it live: the server unpacks it into a
+# new release, checks it, switches over in one step and keeps the last five.
+# Afterwards every file is fetched from the live site and compared with the build;
+# if anything differs, the previous release goes back live.
+# Switched on by the repository variable SITE_DEPLOY=on.
+# Run it by hand with "rollback" to switch back to the previous release without a build.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "deploy: build and put this branch live (main only). rollback: switch back to the previous release."
+        type: choice
+        options: [deploy, rollback]
+        default: deploy
+permissions:
+  contents: read
+concurrency:
+  group: production
+  cancel-in-progress: false
+jobs:
+  build:
+    if: github.repository_owner == 'irl-commons' && vars.SITE_DEPLOY == 'on' && inputs.action != 'rollback'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      domain: ${{ steps.site.outputs.domain }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: Verify npm package signatures and provenance
+        run: npm audit signatures
+      - run: npm run check
+      - name: Pack the build
+        id: site
+        run: |
+          echo "domain=$(node -p "require('./site.json').domain")" >> "$GITHUB_OUTPUT"
+          tar --owner=0 --group=0 --mode='u=rwX,g=rX,o=' --sort=name -C dist -czf site.tar.gz .
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: site
+          path: |
+            site.tar.gz
+            dist
+          retention-days: 7
+          if-no-files-found: error
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: production
+      url: https://${{ needs.build.outputs.domain }}/
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+          sparse-checkout: .github/scripts
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          name: site
+          path: build
+      - name: Set up the deploy key
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy
+          chmod 600 ~/.ssh/deploy ~/.ssh/known_hosts
+      - name: Put the release live
+        env:
+          DEPLOY_SSH_TARGET: ${{ secrets.DEPLOY_SSH_TARGET }}
+        run: |
+          ssh -i ~/.ssh/deploy -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes \
+            "$DEPLOY_SSH_TARGET" deploy "$GITHUB_SHA" < build/site.tar.gz > manifest.json
+      - name: Check every live file against the build
+        id: verify
+        run: python3 .github/scripts/verify-deploy.py build/dist manifest.json "https://${{ needs.build.outputs.domain }}/"
+      - name: Roll back if the check failed
+        if: failure() && steps.verify.conclusion == 'failure'
+        env:
+          DEPLOY_SSH_TARGET: ${{ secrets.DEPLOY_SSH_TARGET }}
+        run: |
+          ssh -i ~/.ssh/deploy -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes \
+            "$DEPLOY_SSH_TARGET" rollback
+      - name: Remove the key
+        if: always()
+        run: rm -f ~/.ssh/deploy
+
+  rollback:
+    if: github.repository_owner == 'irl-commons' && vars.SITE_DEPLOY == 'on' && inputs.action == 'rollback'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment: production
+    steps:
+      - name: Switch back to the previous release
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+          DEPLOY_SSH_TARGET: ${{ secrets.DEPLOY_SSH_TARGET }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy
+          chmod 600 ~/.ssh/deploy
+          ssh -i ~/.ssh/deploy -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes \
+            "$DEPLOY_SSH_TARGET" rollback
+          ssh -i ~/.ssh/deploy -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes \
+            "$DEPLOY_SSH_TARGET" status
+          rm -f ~/.ssh/deploy
