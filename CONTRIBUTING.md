@@ -35,7 +35,9 @@ that only show when they are the URL fragment.
 stylesheets, scripts and images it loads) and of each stylesheet, script and font
 with `page-budget.json`. The limits are the size when they were last set plus
 15 percent. `npm run budget` prints the current sizes; after an intended change,
-run `npm run budget -- --write` and review the diff.
+run `npm run budget -- --write` and review the diff. The data update job runs
+`npm run budget -- --raise` instead, which only raises the limits a new data
+release goes over, so the growth shows in its pull request rather than failing it.
 
 ## Screenshots
 
