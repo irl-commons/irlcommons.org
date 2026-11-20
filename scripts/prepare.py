@@ -23,12 +23,14 @@ for src in (ROOT/'content').glob('*.html'):
   page=match[1]
   return match[0] if page in cfg['pages'] else f'href="https://{other}/{page}'
  body=re.sub(r'href="([a-z0-9-]+\.html)',cross,body)
- # The repeated step navigation needs a distinct accessible name at each location.
- count=[0]
+ # Each navigation needs a distinct accessible name. Keep the authored label;
+ # only a label that repeats on the page gets "part 2", "part 3" and so on.
+ seen={}
  def landmark(match):
-  count[0]+=1
-  return match[0].replace('aria-label="','aria-label="Step navigation '+str(count[0])+': ')
- body=re.sub(r'<nav[^>]+aria-label="[^"]+"',landmark,body)
+  label=match[1]
+  seen[label]=seen.get(label,0)+1
+  return match[0] if seen[label]==1 else match[0][:-1]+f', part {seen[label]}"'
+ body=re.sub(r'<nav[^>]+aria-label="([^"]+)"',landmark,body)
  body=re.sub(r'<nav(?![^>]*aria-label)([^>]*)>',lambda m: '<nav aria-label="Steps '+str(m.start())+'"'+m[1]+'>',body)
  rendered[src.name]=r.add_permalinks(body)
 (ROOT/'.generated').mkdir(exist_ok=True)
