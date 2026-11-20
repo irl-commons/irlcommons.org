@@ -3,3 +3,4 @@ dist/
 .astro/
 .generated/
 __pycache__/
+.snapshots/

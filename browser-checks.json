@@ -1,0 +1,17 @@
+{
+ "themeStorageKey": "osb.theme",
+ "states": {},
+ "baseline": [
+  {
+   "page": "initiative.html",
+   "check": "overflow",
+   "variants": ["reflow-320"],
+   "why": "At 320 pixels the longest On this page link does not wrap (white-space: nowrap below 1000 pixels) and is 24 pixels wider than the screen. Not fixed yet."
+  },
+  {
+   "page": "existing-formats.html",
+   "check": "axe/target-size",
+   "why": "The source link under each Sources summary is 20 pixels tall with 22 pixels to the summary, below the 24 pixel minimum. Covers every target on this page. Not fixed yet."
+  }
+ ]
+}
