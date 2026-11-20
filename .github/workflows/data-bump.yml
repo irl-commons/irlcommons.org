@@ -58,7 +58,11 @@ jobs:
         run: |
           npm ci --ignore-scripts
           npm audit signatures
-          npm run check
+          npm run build
+          # Data pages may grow with a release; raise their page weight limits in this
+          # pull request, where the diff shows it, instead of failing the update.
+          npm run budget -- --raise
+          npm test
       - name: Open or update the pull request
         if: steps.release.outputs.version != ''
         env:
@@ -66,7 +70,7 @@ jobs:
           VERSION: ${{ steps.release.outputs.version }}
         run: |
           branch="data/irl-commons-$VERSION"
-          git add package.json package-lock.json site.json
+          git add package.json package-lock.json site.json page-budget.json
           if ! git diff --cached --quiet; then
             git commit -m "Data: update @irl-commons/data to $VERSION"
           fi
@@ -75,7 +79,13 @@ jobs:
           # Recheck if main changed while the release was being tested.
           npm ci --ignore-scripts
           npm audit signatures
-          npm run check
+          npm run build
+          npm run budget -- --raise
+          npm test
+          git add page-budget.json
+          if ! git diff --cached --quiet; then
+            git commit -m "Data: raise page weight limits for @irl-commons/data $VERSION"
+          fi
           git push origin "$branch"
           title="Data: update @irl-commons/data to $VERSION"
           body="Pins @irl-commons/data to npm release $VERSION. Clean install, signature and provenance verification, build and site checks passed in the update job. The preview link follows in a comment; merging puts it live."

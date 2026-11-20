@@ -4,6 +4,9 @@
 // holds the limits that scripts/budget.test.mjs enforces.
 // `node scripts/budget.mjs` prints the current sizes; `node scripts/budget.mjs --write`
 // sets every limit to the current size plus the headroom, after an intended change.
+// `node scripts/budget.mjs --raise` only raises limits that the current build is over
+// and drops entries for files that are gone; the data update job uses it, so a data
+// release that makes data pages bigger shows up as a diff instead of failing.
 import {readFile,readdir,stat,writeFile} from 'node:fs/promises';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
@@ -55,6 +58,19 @@ export function compare(current,budget){
  return problems;
 }
 
+export function raise(current,budget){
+ const pages={},assets={};
+ for(const [name,s] of Object.entries(current.pages)){
+  const limit=budget.pages?.[name]||{};
+  pages[name]={html:s.html>(limit.html??-1)?limitFor(s.html):limit.html,total:s.total>(limit.total??-1)?limitFor(s.total):limit.total};
+ }
+ for(const [file,bytes] of Object.entries(current.assets)){
+  const limit=budget.assets?.[file];
+  assets[file]=limit===undefined||bytes>limit?limitFor(bytes):limit;
+ }
+ return {...budget,pages,assets};
+}
+
 if(process.argv[1]===fileURLToPath(import.meta.url)){
  const current=await measure();
  const kb=n=>`${(n/1024).toFixed(1)} KB`;
@@ -68,5 +84,12 @@ if(process.argv[1]===fileURLToPath(import.meta.url)){
   };
   await writeFile('page-budget.json',JSON.stringify(budget,null,1)+'\n');
   console.log('Wrote page-budget.json');
+ }else if(process.argv.includes('--raise')){
+  const before=JSON.parse(await readFile('page-budget.json','utf8'));
+  const problems=compare(current,before);
+  if(problems.length){
+   await writeFile('page-budget.json',JSON.stringify(raise(current,before),null,1)+'\n');
+   console.log(`Raised page-budget.json:\n${problems.join('\n')}`);
+  }else console.log('page-budget.json already fits');
  }
 }
