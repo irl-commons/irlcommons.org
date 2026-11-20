@@ -150,7 +150,7 @@ code { font-family: var(--mono); font-size: 0.88em; background: var(--sunk); bor
 .lede { font-size: var(--t-lede); line-height: 1.45; max-width: 56ch; }
 .toc { font-size: var(--t-small); margin-bottom: var(--s4); }
 @media (max-width: 759px) { .toc { margin-bottom: var(--s3); } }
-@media (max-width: 999px) { .toc li { white-space: nowrap; } .toc li a { display: inline-block; padding: 6px 0; } .links .toc li { display: block; } .links .toc li + li::before { content: none; } .links .toc li a { padding: 4px 0; } }
+@media (max-width: 999px) { .toc li { white-space: nowrap; } .toc li a { display: inline-block; padding: 6px 0; white-space: normal; } .links .toc li { display: block; } .links .toc li + li::before { content: none; } .links .toc li a { padding: 4px 0; } }
 .toc .label { display: none; }
 .toc li { display: inline; }
 .toc li + li::before { content: " · "; color: var(--muted); }
@@ -1060,7 +1060,7 @@ details.fold:target > summary, details.fold:target { box-shadow: none; }
 
 details.sources { margin-top: var(--s2); border-top-style: dotted; border-top-color: var(--rule); }
 details.sources > summary { min-height: 40px; padding: 8px 0 4px; font-size: var(--t-small); font-weight: 700; color: var(--muted); }
-details.sources > .tip-src { display: block; margin-top: 0; margin-bottom: 8px; font-size: var(--t-small); line-height: 1.5; overflow-wrap: anywhere; }
+details.sources > .tip-src { display: block; margin-top: 4px; margin-bottom: 8px; font-size: var(--t-small); line-height: 1.5; overflow-wrap: anywhere; }
 .answer details.sources { font-weight: 400; max-width: var(--measure); margin: var(--s1) 0 6px; }
 .plans-page details.fold + details.fold { margin-top: 0; }
 .plans-page details.fold:not(.sources) > summary { font-size: 17px; }
@@ -1614,7 +1614,7 @@ ol.picks.steps .picks.mix, .picks.mix .picks.mix, details.block .picks .picks.mi
 .myapps .banner button.p { background: var(--fg); color: var(--bg); }
 .myapps .empty { color: var(--muted); padding: 8px 0; margin: 0; }
 /* The four part boxes: a colour bar with the part and its count, rows that scroll inside, a fade while more follow. */
-.myapps .part-boxes { display: grid; gap: 10px; margin-top: 6px; }
+.myapps .part-boxes { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; margin-top: 6px; }
 @media (min-width: 900px) { .myapps .part-boxes { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; } }
 .myapps .part-box { border-radius: 12px; overflow: clip; background: var(--card); border: 1.5px solid var(--rule-strong); }
 .myapps .bar { display: flex; align-items: center; gap: 10px; margin: 0; padding: 12px 14px; color: #fff; font-size: 18px; line-height: 1.45; }
