@@ -1,0 +1,62 @@
+{
+ "about": "Byte limits checked by scripts/budget.test.mjs: the size when last set plus 15 percent, rounded up to the next KB. After an intended change, run npm run budget -- --write and review the diff.",
+ "pages": {
+  "index.html": {
+   "html": 24576,
+   "total": 223232
+  },
+  "initiative.html": {
+   "html": 36864,
+   "total": 236544
+  },
+  "open-standards.html": {
+   "html": 30720,
+   "total": 229376
+  },
+  "data.html": {
+   "html": 25600,
+   "total": 225280
+  },
+  "existing-formats.html": {
+   "html": 158720,
+   "total": 358400
+  },
+  "words-for-app-makers.html": {
+   "html": 57344,
+   "total": 256000
+  },
+  "contribute.html": {
+   "html": 26624,
+   "total": 225280
+  },
+  "contact.html": {
+   "html": 8192,
+   "total": 207872
+  },
+  "legal-notice.html": {
+   "html": 9216,
+   "total": 208896
+  },
+  "impressum.html": {
+   "html": 9216,
+   "total": 208896
+  },
+  "privacy.html": {
+   "html": 13312,
+   "total": 212992
+  },
+  "datenschutz.html": {
+   "html": 14336,
+   "total": 214016
+  }
+ },
+ "assets": {
+  "assets/fonts/atkinson-hyperlegible-next-latin-ext-wght-normal.woff2": 22528,
+  "assets/fonts/atkinson-hyperlegible-next-latin-wght-normal.woff2": 39936,
+  "assets/fonts/ibm-plex-mono-latin-400-normal.woff2": 17408,
+  "assets/fonts/ibm-plex-mono-latin-500-normal.woff2": 17408,
+  "assets/fonts/ibm-plex-mono-latin-600-normal.woff2": 18432,
+  "assets/site.js": 63488,
+  "assets/style.css": 137216
+ }
+}

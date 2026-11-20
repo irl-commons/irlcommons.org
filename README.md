@@ -52,8 +52,10 @@ the Help page's app list (My apps).
 The site also works without script. Quick checks are not published.
 
 Tests cover the build, local links and anchors, metadata, HTML validation,
-schema addresses and the strict CSP. No third-party resources load in readers'
-browsers. The data package is fetched at build time only.
+schema addresses, the strict CSP and page weight. Browser checks for
+accessibility, layout, console errors and the site without script run in CI
+(`npm run check:browser`, see [CONTRIBUTING.md](CONTRIBUTING.md)). No third-party
+resources load in readers' browsers. The data package is fetched at build time only.
 
 ## Licences
 
