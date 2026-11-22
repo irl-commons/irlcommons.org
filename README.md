@@ -33,6 +33,16 @@ GitHub Actions does both, once the repository variables `SITE_DEPLOY=on` and
 The deploy key, the server address and its host key are secrets of the
 `production` and `preview` environments; `production` only accepts `main`.
 
+## Addresses
+
+Pages are built as files (`data.html`) and served without the extension: `https://irlcommons.org/data`, the home
+page at `/`. An old address ending in `.html`, and `/index`, answers with a permanent redirect (301) to the clean
+one, query kept, so existing links keep working. Schema files keep their paths (`/schemas/stream-status/v0.json`).
+Sources may still link `data.html#formats`; the build (`shared/addresses.py`) writes every link, canonical and
+sitemap entry for a page of either site without `.html`, and `npm test` fails if a page links an old address.
+`npm run serve` serves and redirects the same way as the host, and the deploy check fetches each page at its clean
+address and its redirect from the old one.
+
 ## Sources
 
 Edit prose in `content/`, page metadata and navigation in `src/shells.json`,
@@ -44,7 +54,7 @@ update job follows npm’s `latest` tag and opens a release pull request.
 
 `shared/` is the same versioned folder in both site repositories: rendering
 functions, calculator formula, thumbnail attribution and the data-use model.
-Shared version: 1.2.10. Changes should be copied to the sibling site in the same
+Shared version: 1.2.11. Changes should be copied to the sibling site in the same
 review. Vendoring this small folder keeps either repository independently
 buildable without a third package release. Styles and self-hosted fonts are
 identical; one first-party script adds theme choice, search, the calculator and

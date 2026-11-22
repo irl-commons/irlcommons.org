@@ -19,7 +19,7 @@ try{
   const context=await browser.newContext({viewport:{width,height},isMobile:phone,hasTouch:phone,colorScheme:scheme,reducedMotion:'reduce'});
   const page=await context.newPage();
   for(const name of config.pages){
-   await page.goto(`${server.origin}/${name}`,{waitUntil:'load'});
+   await page.goto(`${server.origin}/${name==='index.html'?'':name.replace(/\.html$/,'')}`,{waitUntil:'load'});
    await page.evaluate(()=>document.fonts.ready.then(()=>true));
    await page.screenshot({path:`${out}/${name.replace(/\.html$/,'')}-${view}-${scheme}.png`,fullPage:true,animations:'disabled',caret:'hide'});
   }

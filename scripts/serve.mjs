@@ -1,5 +1,8 @@
 // Serves dist/ on 127.0.0.1 with the response headers from _headers, so the
-// strict CSP applies locally the way it does on the host.
+// strict CSP applies locally the way it does on the host. Pages are served at
+// addresses without ".html" like on the host: /phone-setup from phone-setup.html,
+// and an old address (/phone-setup.html, /index.html, /index) answers 301 to the
+// clean one, query kept.
 // Run `node scripts/serve.mjs [port]` to preview a build; the browser checks import it.
 import http from 'node:http';
 import {readFile,stat} from 'node:fs/promises';
@@ -25,20 +28,29 @@ export function parseRedirects(text){
  return new Map(text.split('\n').map(l=>l.trim().split(/\s+/)).filter(p=>p.length>=2&&p[0].startsWith('/')).map(([from,to,code])=>[from,{to,code:Number(code)||301}]));
 }
 
+// The clean address of an old ".html" one (path only), or null when it is already clean.
+export function cleanPath(name){
+ const m=/^((?:\/[\w-][\w.~-]*)*\/)index(?:\.html)?$/.exec(name)||/^((?:\/[\w-][\w.~-]*)+)\.html$/.exec(name);
+ return m?m[1]:null;
+}
+
 export async function serve(root='dist',port=0){
  root=path.resolve(root);
  const read=name=>{try{return readFileSync(path.join(root,name),'utf8');}catch{return '';}};
  const headers=parseHeaders(read('_headers'));
  const redirects=parseRedirects(read('_redirects'));
  const server=http.createServer(async(req,res)=>{
-  let name;
-  try{name=decodeURIComponent(new URL(req.url,'http://localhost').pathname);}catch{res.writeHead(400,headers);return res.end();}
+  let name,url;
+  try{url=new URL(req.url,'http://localhost');name=decodeURIComponent(url.pathname);}catch{res.writeHead(400,headers);return res.end();}
   const redirect=redirects.get(name);
   if(redirect){res.writeHead(redirect.code,{...headers,Location:redirect.to});return res.end();}
+  const clean=cleanPath(url.pathname);
+  if(clean){res.writeHead(301,{...headers,Location:clean+url.search});return res.end();}
   if(name.endsWith('/'))name+='index.html';
-  const file=path.join(root,name);
+  let file=path.join(root,name);
   if(!file.startsWith(root+path.sep)||path.basename(file).startsWith('_')){res.writeHead(404,headers);return res.end();}
   try{
+   if(!(await stat(file).catch(()=>null))?.isFile())file+='.html';
    if(!(await stat(file)).isFile())throw new Error('not a file');
    const body=await readFile(file);
    res.writeHead(200,{...headers,'Content-Type':types[path.extname(file)]||'application/octet-stream','Content-Length':body.length,'Cache-Control':'no-store'});

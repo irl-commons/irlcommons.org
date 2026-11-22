@@ -9,6 +9,9 @@ import {readFile,writeFile} from 'node:fs/promises';
 import {createRequire} from 'node:module';
 import {chromium} from 'playwright-core';
 import {serve} from './serve.mjs';
+// Pages are served without ".html": phone-setup.html#x at /phone-setup#x, index.html at /.
+const address=p=>p.replace(/^index\.html/,'').replace(/\.html(?=#|$)/,'');
+const fileOf=pathname=>{const p=pathname.replace(/^\//,'');return !p?'index.html':/\.[a-z0-9]+$/.test(p)?p:`${p}.html`;};
 
 const require=createRequire(import.meta.url);
 const axeSource=await readFile(require.resolve('axe-core/axe.min.js'),'utf8');
@@ -104,7 +107,7 @@ async function checkPage(browser,origin,path,variant){
  page.on('pageerror',error=>add('console',local(String(error.message)).slice(0,200),'uncaught exception'));
  page.on('response',response=>{if(response.status()>=400)add('request',local(response.url()),`HTTP ${response.status()}`);});
  page.on('requestfailed',request=>{if(request.url().startsWith(origin))add('request',local(request.url()),request.failure()?.errorText||'failed');});
- await page.goto(`${origin}/${path}`,{waitUntil:'load'});
+ await page.goto(`${origin}/${address(path)}`,{waitUntil:'load'});
  await page.evaluate(()=>document.fonts.ready.then(()=>true));
  // Open every fold so that what is inside them is checked too.
  await page.evaluate(()=>{for(const d of document.querySelectorAll('details'))d.open=true;});
@@ -200,9 +203,10 @@ test.before(async()=>{
   const status=new Map();
   for(const l of links){
    const url=new URL(l.href);if(url.origin!==server.origin)continue;
-   const file=url.pathname.replace(/^\//,'')||'index.html';
-   if(!status.has(file))status.set(file,(await fetch(server.origin+url.pathname,{method:'HEAD',redirect:'manual'})).status);
-   if(status.get(file)>=400)all.push({page:l.page,variant:l.variant,check:'link',target:l.from,detail:`${url.pathname} answers HTTP ${status.get(file)}`});
+   const file=fileOf(url.pathname);
+   if(!status.has(url.pathname))status.set(url.pathname,(await fetch(server.origin+url.pathname,{method:'HEAD',redirect:'manual'})).status);
+   // A link to an old ".html" address only works through a redirect; links go to the page's own address.
+   if(status.get(url.pathname)>=300)all.push({page:l.page,variant:l.variant,check:'link',target:l.from,detail:`${url.pathname} answers HTTP ${status.get(url.pathname)}`});
    const hash=decodeURIComponent(url.hash.slice(1));
    if(hash&&ids.has(file)&&!ids.get(file).has(hash))all.push({page:l.page,variant:l.variant,check:'anchor',target:l.from,detail:`${url.pathname}#${hash} has no element with that id`});
   }

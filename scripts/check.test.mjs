@@ -8,11 +8,14 @@ const config=JSON.parse(await readFile('site.json','utf8'));
 const docs=new Map(await Promise.all(config.pages.map(async name=>[name,await readFile(path.join(root,name),'utf8')])));
 const ids=text=>new Set([...text.matchAll(/\bid="([^"]+)"/g)].map(m=>m[1]));
 const decode=s=>s.replaceAll('&amp;','&');
+// Pages are files x.html served at /x, the home page at /; links use those addresses (shared/addresses.py).
+const addr=name=>name==='index.html'?'':name.replace(/\.html$/,'');
+const fileOf=value=>{const p=value.replace(/^\.?\//,'');return !p?'index.html':/\.[a-z0-9]+$/.test(p)?p:`${p}.html`;};
 test('Every page has its canonical URL, metadata, one h1 and unique ids',()=>{
  for(const [name,text] of docs){
   assert.equal((text.match(/<h1\b/g)||[]).length,1,name);
   const all=[...text.matchAll(/\bid="([^"]+)"/g)].map(m=>m[1]);assert.equal(new Set(all).size,all.length,name);
-  const url=`https://${config.domain}/${name==='index.html'?'':name}`;
+  const url=`https://${config.domain}/${addr(name)}`;
   assert.ok(text.includes(`rel="canonical" href="${url}"`),name);
   assert.ok(text.includes(`property="og:url" content="${url}"`),name);
   assert.ok(!text.includes('name="robots"'),name);
@@ -23,8 +26,9 @@ test('Every page has its canonical URL, metadata, one h1 and unique ids',()=>{
 test('Local links and fragments resolve',async()=>{
  for(const [name,text] of docs)for(const match of text.matchAll(/(?:href|src)="([^\"]+)"/g)){
   const value=decode(match[1]);if(/^(https?:|mailto:|tel:)/.test(value))continue;
-  const [file,hash]=value.split('#');const target=file?file.replace(/^\//,''):name;
+  const [file,hash]=value.split('#');const target=file?fileOf(file):name;
   assert.ok(!target.includes('..'),value);
+  assert.ok(!/\.html$/.test(file||''),`${name}: ${value} links an old .html address; link the page without .html`);
   await stat(path.join(root,target));
   if(hash&&docs.has(target))assert.ok(ids(docs.get(target)).has(hash),`${name}: ${value}`);
  }
@@ -60,8 +64,8 @@ test('Sitemap covers the complete page list and schemas retain canonical ids',as
 test('The old standards address points to Existing formats',async()=>{
  if(config.domain!=='irlcommons.org')return;
  const text=await readFile('dist/standards.html','utf8');
- assert.ok(text.includes('http-equiv="refresh" content="0; url=existing-formats.html"'));
- assert.ok(text.includes('rel="canonical" href="https://irlcommons.org/existing-formats.html"'));
+ assert.ok(text.includes('http-equiv="refresh" content="0; url=existing-formats"'));
+ assert.ok(text.includes('rel="canonical" href="https://irlcommons.org/existing-formats"'));
  assert.ok(docs.has('existing-formats.html')&&!docs.has('standards.html'));
 });
 
@@ -115,4 +119,47 @@ assert r.channel_type('GitHub discussions', 'https://github.com/example/example/
 assert r.channel_type('Manual', 'https://example.org/manual', 'docs') == 'Help'
 assert not hasattr(r, 'SITE_SUPPORT_EXTRA')
 `],{stdio:'pipe'});
+});
+
+test('Pages answer at addresses without .html; old .html addresses answer 301 to them, query kept', async()=>{
+ const {serve,cleanPath}=await import('./serve.mjs');
+ assert.equal(cleanPath('/phone-setup.html'),'/phone-setup');
+ assert.equal(cleanPath('/index.html'),'/');
+ assert.equal(cleanPath('/index'),'/');
+ assert.equal(cleanPath('/phone-setup'),null);
+ assert.equal(cleanPath('//evil.example/x.html'),null);
+ const server=await serve('dist');
+ try{
+  const get=p=>fetch(server.origin+p,{redirect:'manual'});
+  for(const name of config.pages){
+   const r=await get(`/${addr(name)}`);
+   assert.equal(r.status,200,name);assert.equal(await r.text(),docs.get(name),name);
+   const old=await get(`/${name}?a=1&b=2`);
+   assert.equal(old.status,301,name);assert.equal(old.headers.get('location'),`/${addr(name)}?a=1&b=2`,name);
+  }
+  assert.equal((await get('/index')).headers.get('location'),'/');
+  for(const p of ['/assets/style.css','/sitemap.xml','/robots.txt','/schemas/stream-status/v0.json','/schemas/stream-session/v0.json'])assert.equal((await get(p)).status,200,p);
+  assert.equal((await get('/standards.html')).headers.get('location'),'/standards');
+  assert.equal((await get('/no-such-page')).status,404);
+  assert.equal((await get('/initiative/')).status,404);
+ }finally{await server.close();}
+});
+
+test('Links to pages of either site drop .html; other links stay as written', async()=>{
+ const {execFileSync}=await import('node:child_process');
+ const out=execFileSync('python3',['-c',`
+import sys; sys.path.insert(0, 'shared')
+from addresses import clean_links, url
+print(url('howtoirl.org', 'index.html'), url('howtoirl.org', 'help.html'))
+print(clean_links('<a href="index.html">a</a> <a href="index.html#x">b</a> <a href="glossary.html#srt">c</a> <a href="help.html?tab=1">d</a>'))
+print(clean_links('<a href="https://irlcommons.org/standards.html#shared">e</a> <link rel="canonical" href="https://howtoirl.org/index.html">'))
+print(clean_links('changes=On%20https%3A%2F%2Fhowtoirl.org%2Fcloud.html%3A%20 data-copy="https://howtoirl.org/cloud.html"'))
+print(clean_links('<a href="https://example.com/a.html">f</a> <a href="assets/x.css">g</a> <a href="https://howtoirl.org/assets/share/a.png">h</a>'))
+`]).toString().trim().split('\n');
+ assert.deepEqual(out,[
+  'https://howtoirl.org/ https://howtoirl.org/help',
+  '<a href="./">a</a> <a href="./#x">b</a> <a href="glossary#srt">c</a> <a href="help?tab=1">d</a>',
+  '<a href="https://irlcommons.org/standards#shared">e</a> <link rel="canonical" href="https://howtoirl.org/">',
+  'changes=On%20https%3A%2F%2Fhowtoirl.org%2Fcloud%3A%20 data-copy="https://howtoirl.org/cloud"',
+  '<a href="https://example.com/a.html">f</a> <a href="assets/x.css">g</a> <a href="https://howtoirl.org/assets/share/a.png">h</a>']);
 });
