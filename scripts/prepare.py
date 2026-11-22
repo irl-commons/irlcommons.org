@@ -3,6 +3,7 @@ import json, pathlib, sys, re
 ROOT=pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT/'shared'))
 import render as r
+from addresses import address, clean_links
 pkg=ROOT/'node_modules/@irl-commons/data'
 data={k:json.loads((pkg/'data'/f'{k}.json').read_text())[k] for k in ['words','services','guides','standards']}
 r.GUIDES[:]=data['guides'];r.SERVICES_BY_ID.update({s['id']:s for s in data['services']})
@@ -32,8 +33,15 @@ for src in (ROOT/'content').glob('*.html'):
   return match[0] if seen[label]==1 else match[0][:-1]+f', part {seen[label]}"'
  body=re.sub(r'<nav[^>]+aria-label="([^"]+)"',landmark,body)
  body=re.sub(r'<nav(?![^>]*aria-label)([^>]*)>',lambda m: '<nav aria-label="Steps '+str(m.start())+'"'+m[1]+'>',body)
- rendered[src.name]=r.add_permalinks(body)
+ # Pages are served without ".html" (shared/addresses.py).
+ rendered[src.name]=clean_links(r.add_permalinks(body))
 (ROOT/'.generated').mkdir(exist_ok=True)
+shells=json.loads((ROOT/'src/shells.json').read_text())
+(ROOT/'.generated/shells.json').write_text(json.dumps([{**s,**{k:clean_links(s[k]) for k in ('head','before','after')}} for s in shells],ensure_ascii=False))
+# The sitemap lists every page in site.json.
+cfg=json.loads((ROOT/'site.json').read_text())
+(ROOT/'public/sitemap.xml').write_text('<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+ +''.join(f'  <url><loc>https://{cfg["domain"]}/{address(n)}</loc></url>\n' for n in cfg['pages'])+'</urlset>\n')
 (ROOT/'.generated/content.json').write_text(json.dumps(rendered,ensure_ascii=False))
 if 'links.html' in json.loads((ROOT/'site.json').read_text())['pages']:
  (ROOT/'public/assets/links-filters.css').write_text(r.links_filters_css(data['services']))

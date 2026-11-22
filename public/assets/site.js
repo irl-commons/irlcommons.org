@@ -41,9 +41,11 @@
     try { return window.localStorage; } catch (e) { return null; }
   }
 
+  // A moved page's data-moved names the page file it moved to; pages are served without ".html", the home page at "./".
   function movedUrl(target, hash) {
     if (!/^[a-z0-9-]+\.html$/.test(target || "")) return null;
-    return target + (/^#[A-Za-z0-9_-]+$/.test(hash || "") ? hash : "");
+    var page = target.replace(/\.html$/, "");
+    return (page === "index" ? "./" : page) + (/^#[A-Za-z0-9_-]+$/.test(hash || "") ? hash : "");
   }
 
   // The phone platform an answer's iPhone/Android switch starts on; iPhone when the visitor's isn't offered or known.
@@ -1054,7 +1056,7 @@
       }
       var target = h.row ? document.getElementById(h.row) : null;
       var tabName = h.tab || (target && panels[1].contains(target) ? "guides" : "help");
-      if (h.open && !apps[h.open]) { window.location.replace("links.html#" + h.open); return; }
+      if (h.open && !apps[h.open]) { window.location.replace("links#" + h.open); return; }
       tab(tabName);
       render();
       if (target && target !== panels[0]) {

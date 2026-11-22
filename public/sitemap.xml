@@ -1,15 +1,15 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url><loc>https://irlcommons.org/</loc></url>
-  <url><loc>https://irlcommons.org/initiative.html</loc></url>
-  <url><loc>https://irlcommons.org/open-standards.html</loc></url>
-  <url><loc>https://irlcommons.org/data.html</loc></url>
-  <url><loc>https://irlcommons.org/existing-formats.html</loc></url>
-  <url><loc>https://irlcommons.org/words-for-app-makers.html</loc></url>
-  <url><loc>https://irlcommons.org/contribute.html</loc></url>
-  <url><loc>https://irlcommons.org/contact.html</loc></url>
-  <url><loc>https://irlcommons.org/legal-notice.html</loc></url>
-  <url><loc>https://irlcommons.org/impressum.html</loc></url>
-  <url><loc>https://irlcommons.org/privacy.html</loc></url>
-  <url><loc>https://irlcommons.org/datenschutz.html</loc></url>
+  <url><loc>https://irlcommons.org/initiative</loc></url>
+  <url><loc>https://irlcommons.org/open-standards</loc></url>
+  <url><loc>https://irlcommons.org/data</loc></url>
+  <url><loc>https://irlcommons.org/existing-formats</loc></url>
+  <url><loc>https://irlcommons.org/words-for-app-makers</loc></url>
+  <url><loc>https://irlcommons.org/contribute</loc></url>
+  <url><loc>https://irlcommons.org/contact</loc></url>
+  <url><loc>https://irlcommons.org/legal-notice</loc></url>
+  <url><loc>https://irlcommons.org/impressum</loc></url>
+  <url><loc>https://irlcommons.org/privacy</loc></url>
+  <url><loc>https://irlcommons.org/datenschutz</loc></url>
 </urlset>
