@@ -1,6 +1,8 @@
 // Page weight: bytes of each page's HTML, and of the HTML with the stylesheets,
 // scripts and images it loads; plus each stylesheet, script and font in
-// dist/assets (images count with the pages that show them). page-budget.json
+// dist/assets (images count with the pages that show them). Fingerprints are
+// omitted from budget keys so a content edit keeps the existing limit.
+// page-budget.json
 // holds the limits that scripts/budget.test.mjs enforces.
 // `node scripts/budget.mjs` prints the current sizes; `node scripts/budget.mjs --write`
 // sets every limit to the current size plus the headroom, after an intended change.
@@ -12,6 +14,7 @@ import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 
 export const HEADROOM=0.15;
+export const assetKey=file=>file.replace(/^(assets\/[^/]+)\.[\w-]{8}(\.(?:css|js))$/,'$1$2');
 export const limitFor=bytes=>Math.ceil(bytes*(1+HEADROOM)/1024)*1024;
 
 export async function measure(root='dist'){
@@ -34,7 +37,11 @@ export async function measure(root='dist'){
   for(const entry of await readdir(path.join(root,dir),{withFileTypes:true})){
    const file=`${dir}/${entry.name}`;
    if(entry.isDirectory())await walk(file);
-   else if(/\.(css|js|woff2)$/.test(entry.name))assets[file]=await size(file);
+   else if(/\.(css|js|woff2)$/.test(entry.name)){
+    const key=assetKey(file);
+    if(Object.hasOwn(assets,key))throw new Error(`Multiple files for asset budget ${key}`);
+    assets[key]=await size(file);
+   }
   }
  };
  await walk('assets');

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
-import {measure,compare,raise,limitFor} from './budget.mjs';
+import {measure,compare,raise,limitFor,assetKey} from './budget.mjs';
 
 test('Pages and assets stay within page-budget.json',async()=>{
  const problems=compare(await measure(),JSON.parse(await readFile('page-budget.json','utf8')));
@@ -16,4 +16,10 @@ test('raise only lifts limits the build is over and drops files that are gone',(
  assert.deepEqual(raised.assets,{'assets/site.js':4096,'assets/new.css':limitFor(500)});
  assert.equal(raised.about,'x');
  assert.deepEqual(compare(current,raised),[]);
+});
+
+test('Bundled assets keep their budget when their fingerprint changes',()=>{
+ assert.equal(assetKey('assets/site.BesvBBcu.css'),'assets/site.css');
+ assert.equal(assetKey('assets/site.ac0x1IJ-.js'),'assets/site.js');
+ assert.equal(assetKey('assets/fonts/example.12345678.woff2'),'assets/fonts/example.12345678.woff2');
 });
