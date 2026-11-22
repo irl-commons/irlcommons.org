@@ -33,7 +33,11 @@ test('Strict CSP: one first-party script, no inline executable code or third-par
  const scripts=new Set();
  for(const [name,text] of docs){
   assert.ok(!/<style\b|\sstyle=|\son\w+=/i.test(text),name);
-  for(const m of text.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/g)){
+  const pageScripts=[...text.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/g)];
+  assert.equal(pageScripts.length,1,name);
+  for(const m of pageScripts){
+   assert.match(m[1],/\btype="module"/);
+   assert.match(m[1],/\bblocking="render"/);
    assert.equal(m[2].trim(),'');const src=/src="([^"]+)"/.exec(m[1]);assert.ok(src);assert.ok(src[1].startsWith('/assets/'));scripts.add(src[1]);
   }
   assert.ok(!/<(?:img|script|iframe|video|audio)[^>]+src="(?:https?:|\/\/)|<link[^>]+href="(?:https?:|\/\/)(?![^>]*rel="canonical")/i.test(text.replace(/<link rel="(?:canonical|alternate)"[^>]*>/g,'')),name);

@@ -9,6 +9,13 @@ changes there first; this site consumes a pinned package and keeps no data fork.
 See its CONTRIBUTING guide for source evidence and prefilled issue forms.
 The organisation's community health defaults apply here.
 
+## Frontend assets
+
+Astro bundles the strict TypeScript modules in `src/scripts/` and the styles in
+`src/styles/` through Vite. `npm run typecheck` checks the browser modules and is
+part of `npm run check`. Built scripts and styles are external same-origin files
+under `/assets/` so the site's CSP applies.
+
 ## Browser checks
 
 `npm run check:browser` opens every page of the built site (`npm run build`
