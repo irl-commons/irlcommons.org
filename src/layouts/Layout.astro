@@ -6,6 +6,6 @@ const {shell} = Astro.props;
 ---
 <!doctype html>
 <html lang={shell.meta.lang}>
-<head><Fragment set:html={shell.head} /><link rel="stylesheet" href={siteStyles}><script is:inline src="/assets/site.js"></script></head>
+<head><Fragment set:html={shell.head} /><link rel="stylesheet" href={siteStyles}><script>import "../scripts/site.ts";</script></head>
 <body><Header html={shell.before} /><main id="main" class={shell.meta.main_class || undefined}><slot /></main><Footer html={shell.after} /></body>
 </html>

@@ -229,3 +229,32 @@ test('Every baseline entry in browser-checks.json still matches a finding',()=>{
  const {stale}=applyBaseline(all,settings.baseline||[]);
  assert.equal(stale.length,0,`These look fixed; remove them from browser-checks.json "baseline":\n${JSON.stringify(stale,null,1)}`);
 });
+
+test('A saved theme applies before first paint even when the script is slow',async()=>{
+ const server=await serve('dist'), browser=await chromium.launch();
+ try{
+  const page=await browser.newPage({colorScheme:'light'});
+  page.setDefaultTimeout(5000);
+  await page.addInitScript(key=>{
+   localStorage.setItem(key,'dark');
+   const observer=new MutationObserver(()=>{
+    if(document.documentElement?.dataset.theme==='dark'){
+     performance.mark('saved-theme-applied');
+     observer.disconnect();
+    }
+   });
+   observer.observe(document,{subtree:true,attributes:true,attributeFilter:['data-theme']});
+  },settings.themeStorageKey);
+  await page.route('**/assets/*.js',async route=>{
+   await new Promise(resolve=>setTimeout(resolve,350));
+   await route.continue();
+  });
+  await page.goto(server.origin);
+  await page.waitForFunction(()=>performance.getEntriesByName('first-contentful-paint').length>0);
+  const {applied,paint}=await page.evaluate(()=>({
+   applied:performance.getEntriesByName('saved-theme-applied')[0]?.startTime,
+   paint:performance.getEntriesByName('first-contentful-paint')[0].startTime,
+  }));
+  assert.ok(applied>0&&applied<=paint,`Theme applied at ${applied} ms, first contentful paint at ${paint} ms`);
+ }finally{await browser.close();await server.close();}
+});
